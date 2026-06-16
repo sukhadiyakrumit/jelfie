@@ -49,8 +49,8 @@ function ShopPage() {
     return true;
   });
 
-  const setFilter = (key: keyof typeof search, value: string | undefined) => {
-    navigate({ search: (prev) => ({ ...prev, [key]: value || undefined }) });
+  const setFilter = (key: keyof z.infer<typeof searchSchema>, value: string | undefined) => {
+    navigate({ search: (prev: z.infer<typeof searchSchema>) => ({ ...prev, [key]: value || undefined }) });
   };
 
   return (
