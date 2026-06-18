@@ -94,6 +94,129 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          phone: string | null
+          postal_code: string | null
+          updated_at: string
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          phone?: string | null
+          postal_code?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          postal_code?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      quote_request_items: {
+        Row: {
+          created_at: string
+          id: string
+          image_url: string | null
+          name: string
+          price_usd: number
+          product_id: string | null
+          quantity: number
+          quote_id: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          name: string
+          price_usd?: number
+          product_id?: string | null
+          quantity?: number
+          quote_id: string
+          slug: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          name?: string
+          price_usd?: number
+          product_id?: string | null
+          quantity?: number
+          quote_id?: string
+          slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_request_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_request_items_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quote_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quote_requests: {
+        Row: {
+          created_at: string
+          currency: string
+          id: string
+          note: string | null
+          status: string
+          total_usd: number
+          user_id: string
+          whatsapp_url: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          id?: string
+          note?: string | null
+          status?: string
+          total_usd?: number
+          user_id: string
+          whatsapp_url: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          id?: string
+          note?: string | null
+          status?: string
+          total_usd?: number
+          user_id?: string
+          whatsapp_url?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
