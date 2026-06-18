@@ -18,6 +18,10 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProductSlugRouteImport } from './routes/product.$slug'
+import { Route as AccountSignUpRouteImport } from './routes/account.sign-up'
+import { Route as AccountSignInRouteImport } from './routes/account.sign-in'
+import { Route as AccountProfileRouteImport } from './routes/account.profile'
+import { Route as AccountOrdersRouteImport } from './routes/account.orders'
 import { Route as AuthenticatedAdminProductsIndexRouteImport } from './routes/_authenticated.admin.products.index'
 import { Route as AuthenticatedAdminProductsNewRouteImport } from './routes/_authenticated.admin.products.new'
 import { Route as AuthenticatedAdminProductsIdRouteImport } from './routes/_authenticated.admin.products.$id'
@@ -66,6 +70,26 @@ const ProductSlugRoute = ProductSlugRouteImport.update({
   path: '/product/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccountSignUpRoute = AccountSignUpRouteImport.update({
+  id: '/account/sign-up',
+  path: '/account/sign-up',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountSignInRoute = AccountSignInRouteImport.update({
+  id: '/account/sign-in',
+  path: '/account/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountProfileRoute = AccountProfileRouteImport.update({
+  id: '/account/profile',
+  path: '/account/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountOrdersRoute = AccountOrdersRouteImport.update({
+  id: '/account/orders',
+  path: '/account/orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAdminProductsIndexRoute =
   AuthenticatedAdminProductsIndexRouteImport.update({
     id: '/admin/products/',
@@ -93,6 +117,10 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/shop': typeof ShopRoute
   '/wishlist': typeof WishlistRoute
+  '/account/orders': typeof AccountOrdersRoute
+  '/account/profile': typeof AccountProfileRoute
+  '/account/sign-in': typeof AccountSignInRoute
+  '/account/sign-up': typeof AccountSignUpRoute
   '/product/$slug': typeof ProductSlugRoute
   '/admin/products/$id': typeof AuthenticatedAdminProductsIdRoute
   '/admin/products/new': typeof AuthenticatedAdminProductsNewRoute
@@ -106,6 +134,10 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/shop': typeof ShopRoute
   '/wishlist': typeof WishlistRoute
+  '/account/orders': typeof AccountOrdersRoute
+  '/account/profile': typeof AccountProfileRoute
+  '/account/sign-in': typeof AccountSignInRoute
+  '/account/sign-up': typeof AccountSignUpRoute
   '/product/$slug': typeof ProductSlugRoute
   '/admin/products/$id': typeof AuthenticatedAdminProductsIdRoute
   '/admin/products/new': typeof AuthenticatedAdminProductsNewRoute
@@ -121,6 +153,10 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/shop': typeof ShopRoute
   '/wishlist': typeof WishlistRoute
+  '/account/orders': typeof AccountOrdersRoute
+  '/account/profile': typeof AccountProfileRoute
+  '/account/sign-in': typeof AccountSignInRoute
+  '/account/sign-up': typeof AccountSignUpRoute
   '/product/$slug': typeof ProductSlugRoute
   '/_authenticated/admin/products/$id': typeof AuthenticatedAdminProductsIdRoute
   '/_authenticated/admin/products/new': typeof AuthenticatedAdminProductsNewRoute
@@ -136,6 +172,10 @@ export interface FileRouteTypes {
     | '/contact'
     | '/shop'
     | '/wishlist'
+    | '/account/orders'
+    | '/account/profile'
+    | '/account/sign-in'
+    | '/account/sign-up'
     | '/product/$slug'
     | '/admin/products/$id'
     | '/admin/products/new'
@@ -149,6 +189,10 @@ export interface FileRouteTypes {
     | '/contact'
     | '/shop'
     | '/wishlist'
+    | '/account/orders'
+    | '/account/profile'
+    | '/account/sign-in'
+    | '/account/sign-up'
     | '/product/$slug'
     | '/admin/products/$id'
     | '/admin/products/new'
@@ -163,6 +207,10 @@ export interface FileRouteTypes {
     | '/contact'
     | '/shop'
     | '/wishlist'
+    | '/account/orders'
+    | '/account/profile'
+    | '/account/sign-in'
+    | '/account/sign-up'
     | '/product/$slug'
     | '/_authenticated/admin/products/$id'
     | '/_authenticated/admin/products/new'
@@ -178,6 +226,10 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   ShopRoute: typeof ShopRoute
   WishlistRoute: typeof WishlistRoute
+  AccountOrdersRoute: typeof AccountOrdersRoute
+  AccountProfileRoute: typeof AccountProfileRoute
+  AccountSignInRoute: typeof AccountSignInRoute
+  AccountSignUpRoute: typeof AccountSignUpRoute
   ProductSlugRoute: typeof ProductSlugRoute
 }
 
@@ -246,6 +298,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProductSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/account/sign-up': {
+      id: '/account/sign-up'
+      path: '/account/sign-up'
+      fullPath: '/account/sign-up'
+      preLoaderRoute: typeof AccountSignUpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account/sign-in': {
+      id: '/account/sign-in'
+      path: '/account/sign-in'
+      fullPath: '/account/sign-in'
+      preLoaderRoute: typeof AccountSignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account/profile': {
+      id: '/account/profile'
+      path: '/account/profile'
+      fullPath: '/account/profile'
+      preLoaderRoute: typeof AccountProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account/orders': {
+      id: '/account/orders'
+      path: '/account/orders'
+      fullPath: '/account/orders'
+      preLoaderRoute: typeof AccountOrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/products/': {
       id: '/_authenticated/admin/products/'
       path: '/admin/products'
@@ -295,6 +375,10 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   ShopRoute: ShopRoute,
   WishlistRoute: WishlistRoute,
+  AccountOrdersRoute: AccountOrdersRoute,
+  AccountProfileRoute: AccountProfileRoute,
+  AccountSignInRoute: AccountSignInRoute,
+  AccountSignUpRoute: AccountSignUpRoute,
   ProductSlugRoute: ProductSlugRoute,
 }
 export const routeTree = rootRouteImport

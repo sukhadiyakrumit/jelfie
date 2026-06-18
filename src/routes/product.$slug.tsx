@@ -8,7 +8,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { getProductBySlug } from "@/lib/products.functions";
 import { useCurrency } from "@/lib/currency";
 import { useCart, useWishlist } from "@/lib/cart";
-import { whatsappLink, productQuoteMessage } from "@/lib/whatsapp";
+import { useWhatsappQuote } from "@/lib/use-whatsapp-quote";
 
 const productQuery = (slug: string) =>
   queryOptions({
@@ -58,6 +58,7 @@ function ProductPage() {
   const { format, currency } = useCurrency();
   const { addItem } = useCart();
   const { has, toggle } = useWishlist();
+  const { sendProductQuote, busy: quoteBusy } = useWhatsappQuote();
   const [activeImage, setActiveImage] = useState(0);
 
   const image = product.images[activeImage]?.url ?? product.images[0]?.url ?? null;
@@ -151,16 +152,27 @@ function ProductPage() {
                 <Heart className="w-4 h-4" strokeWidth={1.5} fill={isWish ? "currentColor" : "none"} />
               </button>
             </div>
-            <a
-              href={whatsappLink(
-                productQuoteMessage({ name: product.name, slug: product.slug, priceLabel }),
-              )}
-              target="_blank"
-              rel="noreferrer"
-              className="px-8 py-4 border border-onyx text-onyx text-[11px] uppercase tracking-[0.3em] text-center hover:bg-onyx hover:text-ivory transition-colors"
+            <button
+              type="button"
+              disabled={quoteBusy}
+              onClick={() =>
+                sendProductQuote(
+                  {
+                    productId: product.id,
+                    slug: product.slug,
+                    name: product.name,
+                    priceUsd: product.price_usd,
+                    imageUrl: image,
+                    currency,
+                    priceLabel,
+                  },
+                  `/product/${product.slug}`,
+                )
+              }
+              className="px-8 py-4 border border-onyx text-onyx text-[11px] uppercase tracking-[0.3em] text-center hover:bg-onyx hover:text-ivory transition-colors disabled:opacity-50"
             >
-              Request quote on WhatsApp
-            </a>
+              {quoteBusy ? "Opening…" : "Request quote on WhatsApp"}
+            </button>
           </div>
 
           <p className="mt-8 text-xs text-onyx/40 leading-relaxed">
