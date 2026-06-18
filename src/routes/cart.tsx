@@ -4,7 +4,7 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { useCart } from "@/lib/cart";
 import { useCurrency } from "@/lib/currency";
-import { whatsappLink, cartQuoteMessage } from "@/lib/whatsapp";
+import { useWhatsappQuote } from "@/lib/use-whatsapp-quote";
 
 export const Route = createFileRoute("/cart")({
   head: () => ({
@@ -19,17 +19,7 @@ export const Route = createFileRoute("/cart")({
 function CartPage() {
   const { items, updateQty, removeItem, subtotalUsd, count, clear } = useCart();
   const { format, currency } = useCurrency();
-
-  const totalLabel = `${format(subtotalUsd)} ${currency}`;
-  const message = cartQuoteMessage({
-    items: items.map((i) => ({
-      name: i.name,
-      slug: i.slug,
-      qty: i.qty,
-      priceLabel: `${format(i.priceUsd * i.qty)} ${currency}`,
-    })),
-    totalLabel,
-  });
+  const { sendCartQuote, busy: quoteBusy } = useWhatsappQuote();
 
   return (
     <div className="min-h-screen bg-ivory text-onyx">
@@ -129,14 +119,31 @@ function CartPage() {
                 >
                   Clear selection
                 </button>
-                <a
-                  href={whatsappLink(message)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-10 py-4 bg-onyx text-ivory text-[11px] uppercase tracking-[0.3em] hover:bg-gold"
+                <button
+                  type="button"
+                  disabled={quoteBusy}
+                  onClick={() =>
+                    sendCartQuote(
+                      {
+                        items: items.map((i) => ({
+                          productId: i.productId,
+                          slug: i.slug,
+                          name: i.name,
+                          priceUsd: i.priceUsd,
+                          qty: i.qty,
+                          image: i.image,
+                        })),
+                        currency,
+                        format,
+                        subtotalUsd,
+                      },
+                      "/cart",
+                    )
+                  }
+                  className="px-10 py-4 bg-onyx text-ivory text-[11px] uppercase tracking-[0.3em] hover:bg-gold disabled:opacity-50"
                 >
-                  Send quote request on WhatsApp
-                </a>
+                  {quoteBusy ? "Opening…" : "Send quote request on WhatsApp"}
+                </button>
               </div>
             </div>
           </>

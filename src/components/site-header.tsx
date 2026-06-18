@@ -1,12 +1,14 @@
 import { Link } from "@tanstack/react-router";
-import { Heart, ShoppingBag } from "lucide-react";
+import { Heart, ShoppingBag, User } from "lucide-react";
 import { useCart, useWishlist } from "@/lib/cart";
 import { CURRENCIES, useCurrency } from "@/lib/currency";
+import { useAuthUser } from "@/lib/auth";
 
 export function SiteHeader() {
   const { count: cartCount } = useCart();
   const { count: wishCount } = useWishlist();
   const { currency, setCurrency } = useCurrency();
+  const { isAuthenticated } = useAuthUser();
 
   return (
     <header className="sticky top-0 z-50 bg-ivory/90 backdrop-blur-md border-b border-onyx/5">
@@ -45,6 +47,13 @@ export function SiteHeader() {
             </select>
           </div>
           <div className="flex items-center gap-4">
+            <Link
+              to={isAuthenticated ? "/account/profile" : "/account/sign-in"}
+              aria-label="Account"
+              className="text-onyx hover:text-gold transition-colors"
+            >
+              <User className="w-5 h-5" strokeWidth={1.5} />
+            </Link>
             <Link to="/wishlist" aria-label="Wishlist" className="relative text-onyx hover:text-gold transition-colors">
               <Heart className="w-5 h-5" strokeWidth={1.5} />
               {wishCount > 0 && (
