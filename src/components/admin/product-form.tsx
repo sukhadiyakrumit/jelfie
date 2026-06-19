@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Trash2, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { saveProduct } from "@/lib/admin.functions";
+import { listAllCategories } from "@/lib/admin/categories.functions";
 import type { ProductRow } from "@/lib/products.functions";
 
-const CATEGORIES = ["rings", "necklaces", "earrings", "bracelets", "bangles", "pendants"];
 const METALS = ["gold", "rose gold", "silver", "platinum"];
 const GEMSTONES = ["diamond", "ruby", "emerald", "sapphire", "pearl", "none"];
 
