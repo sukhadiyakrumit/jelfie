@@ -1,53 +1,57 @@
+## Admin Panel Expansion
 
-## Goal
+Build a complete admin panel under `/admin/*` with a persistent sidebar, gated to users with the `admin` role. All sections are fully functional and wired to real data.
 
-Add a customer account system to Jelfie Jewellers so shoppers can sign in, manage a profile, view their past WhatsApp quote requests, and are required to log in before sending any WhatsApp quote (single product or cart).
+### Sections
 
-The existing admin login at `/auth` → `/admin/products` stays untouched as a separate flow.
+1. **AdminDashboard** (`/admin`) — KPI cards (total products, pending quotes, users, revenue-equivalent in USD from quotes), recent quotes table, top products.
+2. **AdminProfile** (`/admin/profile`) — Admin's own full profile + change password.
+3. **ManageQuotation** (`/admin/quotations`) — Replaces "Orders". List all `quote_requests` with customer, items, total, status, expected date of delivery. Update status (new → contacted → closed → cancelled), reopen WhatsApp, add internal note.
+4. **ManageProductCategories** (`/admin/categories`) — New `categories` table (name, slug, description, image, sort_order, is_active). CRUD.
+5. **ManageProduct** (`/admin/products`) — Existing screen, updated to pick category from new table (migrate text → FK).
+6. **ManageOrder** (`/admin/orders`) — Alias view of quotations filtered to `status in (contacted, closed)` — i.e. "active orders" workflow. Same data, different filter/columns (fulfillment-focused).
+7. **ManagePayments** (`/admin/payments`) — New `payments` table (quote_id, amount_usd, method, reference, paid_at, notes). Admin manually records payments against a quote. Marks quote as paid.
+8. **ManageUsers** (`/admin/users`) — List all users (joined profiles + auth.users via admin client), view profile, assign/revoke `admin` role, view their quote history.
+9. **ManageFeedback** (`/admin/feedback`) — Two tabs:
+  - **Contact messages** — new `contact_messages` table fed by a new public `/contact` form (name, email, subject, message, status).
+  - **Product reviews** — new `product_reviews` table (product_id, user_id, rating 1-5, comment, is_approved). Customers submit on product page when logged in; admin approves/hides.
 
-## What you'll see in the app
+### Routing & access
 
-- New **Account** menu in the header: "Sign in" when logged out, "My account" dropdown (Profile, Orders, Sign out) when logged in.
-- New routes:
-  - `/account/sign-in` — email/password, Google, and phone OTP tabs.
-  - `/account/sign-up` — email/password + name/phone.
-  - `/account/profile` — edit full name, phone, shipping address (country, city, address line 1/2, postal code).
-  - `/account/orders` — list of past quote requests (date, items, total, "Open in WhatsApp" link to resend).
-- Every WhatsApp quote button (product page "Request quote", cart "Send quote on WhatsApp", wishlist quick-quote) checks login first:
-  - Logged out → redirect to `/account/sign-in?redirect=<current path>` with a toast "Please sign in to request a quote."
-  - Logged in → record the quote in DB, then open `wa.me` link with the prefilled message (your phone + name appended automatically).
+- Move admin routes into `src/routes/_authenticated/admin.*` (already pathless-protected).
+- Add a second gate layout `_authenticated/admin/route.tsx` (`beforeLoad` calls `requireAdmin` server fn checking `has_role(uid, 'admin')`; redirects non-admins to `/`).
+- New admin shell with shadcn `Sidebar` (collapsible, icon-mini): Dashboard, Profile, Quotations, Orders, Payments, Categories, Products, Users, Feedback, Sign out.
+- Remove the simple top-bar admin header; sidebar replaces it.
 
-## Sign-in methods
+### Database changes (one migration)
 
-- **Email + password** (Lovable Cloud default).
-- **Google** — via managed `lovable.auth.signInWithOAuth("google", ...)`.
-- **Phone (SMS OTP)** — `supabase.auth.signInWithOtp({ phone })` + verify screen. Note: SMS provider must be enabled in Cloud auth settings; if not yet configured, this tab will show a "coming soon" notice rather than fail.
+- `categories` table + GRANTs + RLS (public SELECT, admin write via `has_role`).
+- `products.category_id uuid references categories(id)`; data backfill from existing text `category`; keep old column nullable for transition then drop.
+- `payments` table (admin-only RLS).
+- `contact_messages` table (anon INSERT, admin SELECT/UPDATE).
+- `product_reviews` table (auth INSERT own, public SELECT where approved, admin all).
+- `quote_requests`: add `internal_note text`, expand `status` check (`new|contacted|closed|cancelled|paid`).
+- Seed default categories (Rings, Necklaces, Earrings, Bracelets).
 
-## Data model (new migration)
+### Server functions (all `requireSupabaseAuth` + admin check helper)
 
-- `profiles` (1:1 with `auth.users`): `id` (= auth uid), `full_name`, `phone`, `country`, `city`, `address_line1`, `address_line2`, `postal_code`.
-  - Auto-created via trigger `on_auth_user_created` calling `handle_new_user()`.
-  - RLS: owner can select/update own row; service_role full.
-- `quote_requests`: `user_id`, `currency`, `total_usd`, `whatsapp_url`, `note`, `status` (default `sent`).
-- `quote_request_items`: `quote_id`, `product_id`, `name`, `slug`, `price_usd`, `quantity`, `image_url`.
-- All tables: GRANT to `authenticated` + `service_role`, RLS scoped to `auth.uid() = user_id`.
+`src/lib/admin/*.functions.ts`: dashboard stats, list/update quotations, CRUD categories, CRUD payments, list users + role mgmt, list/approve feedback & reviews. Public fns: `submitContactMessage`, `submitProductReview` (auth required).
 
-Admin role system stays unchanged (`user_roles` + `private.has_role`). Customer accounts simply have no admin role row.
+### Storefront touches (minimal)
 
-## Code changes
+- `/contact` page: add working form posting to `submitContactMessage`.
+- Product page: "Write a review" section for logged-in users + display approved reviews & avg rating.
+- Shop filters: use categories table.
 
-- `src/integrations/lovable/` — created by `configure_social_auth` (Google).
-- `src/lib/auth.ts` — `useAuthUser()` hook (subscribes to `onAuthStateChange`), `requireLogin(navigate, redirectPath)` helper.
-- `src/lib/quotes.functions.ts` — `createQuoteRequest` (auth-required server fn) that inserts quote + items and returns `whatsapp_url`; `listMyQuotes`.
-- `src/lib/whatsapp.ts` — extend message builders to optionally include `{ name, phone }` from profile.
-- `src/components/site-header.tsx` — add Account dropdown.
-- `src/routes/account.sign-in.tsx`, `account.sign-up.tsx`, `account.profile.tsx`, `account.orders.tsx` — new routes. Profile + orders are gated client-side (redirect if no session) since they're under `/account/*`, not the admin `_authenticated` tree.
-- `src/routes/product.$slug.tsx`, `cart.tsx`, `wishlist.tsx` — replace direct `wa.me` link with a handler that calls `createQuoteRequest` then `window.open(url)`.
+### Out of scope
 
-## Out of scope
+- Real payment gateway (manual entries only, per your answer).
+- Email notifications to customers on status change.
+- Bulk import/export.
 
-- Admin auth/UI is not touched.
-- No password reset email flow yet (can add later via `scaffold_auth_email_templates`).
-- No order fulfillment status beyond `sent` — this is a quote log, not commerce checkout.
+### Technical notes
 
-Confirm and I'll implement.
+- `requireAdmin` middleware = `requireSupabaseAuth` + `has_role(userId,'admin')` check; throws 403 otherwise.
+- User listing uses `supabaseAdmin.auth.admin.listUsers()` inside handler (load via `await import`).
+- Sidebar uses existing shadcn `Sidebar` components; active route via `useRouterState`.
+- First admin: SQL helper note — assign `admin` role via migration to a specified email, or via a one-time bootstrap server fn if no admin exists yet.
