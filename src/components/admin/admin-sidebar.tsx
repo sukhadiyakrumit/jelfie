@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
-const NAV = [
+const NAV: Array<{ to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean }> = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/admin/profile", label: "Profile", icon: UserCircle },
   { to: "/admin/quotations", label: "Quotations", icon: FileText },
@@ -23,7 +23,7 @@ const NAV = [
   { to: "/admin/products", label: "Products", icon: Package },
   { to: "/admin/users", label: "Users", icon: Users },
   { to: "/admin/feedback", label: "Feedback", icon: MessageSquare },
-] as const;
+];
 
 export function AdminSidebar() {
   const navigate = useNavigate();
