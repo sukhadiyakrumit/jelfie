@@ -39,10 +39,17 @@ export const listAllReviews = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("product_reviews")
-      .select("id, product_id, user_id, rating, comment, is_approved, created_at, products(name, slug), profiles(full_name)")
+      .select("id, product_id, user_id, rating, comment, is_approved, created_at, products(name, slug)")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return data ?? [];
+    const rows = data ?? [];
+    const userIds = Array.from(new Set(rows.map((r: any) => r.user_id)));
+    let profiles: Record<string, { full_name: string | null }> = {};
+    if (userIds.length) {
+      const { data: pData } = await supabaseAdmin.from("profiles").select("id, full_name").in("id", userIds);
+      profiles = Object.fromEntries((pData ?? []).map((p: any) => [p.id, p]));
+    }
+    return rows.map((r: any) => ({ ...r, profiles: profiles[r.user_id] ?? null }));
   });
 
 export const updateReview = createServerFn({ method: "POST" })
