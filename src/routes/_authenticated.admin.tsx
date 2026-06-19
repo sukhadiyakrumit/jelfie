@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { checkIsAdmin, claimAdmin } from "@/lib/admin.functions";
 import { toast } from "sonner";
@@ -14,22 +14,22 @@ function AdminLayout() {
   const fetchCheck = useServerFn(checkIsAdmin);
   const doClaim = useServerFn(claimAdmin);
   const navigate = useNavigate();
+  const claimAttempted = useRef(false);
 
   const adminCheck = useQuery({ queryKey: ["admin-check"], queryFn: () => fetchCheck() });
 
   useEffect(() => {
-    if (adminCheck.data && !adminCheck.data.isAdmin) {
-      // try one-time claim
-      doClaim()
-        .then(() => {
-          toast.success("Admin role granted");
-          adminCheck.refetch();
-        })
-        .catch(() => {
-          toast.error("Admin access required");
-          navigate({ to: "/" });
-        });
-    }
+    if (!adminCheck.data || adminCheck.data.isAdmin || claimAttempted.current) return;
+    claimAttempted.current = true;
+    doClaim()
+      .then(() => {
+        toast.success("Admin role granted");
+        adminCheck.refetch();
+      })
+      .catch(() => {
+        toast.error("Admin access required");
+        navigate({ to: "/" });
+      });
   }, [adminCheck.data, doClaim, navigate, adminCheck]);
 
   if (adminCheck.isLoading || !adminCheck.data?.isAdmin) {
