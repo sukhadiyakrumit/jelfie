@@ -106,7 +106,7 @@ function QuotationsPage() {
                   </td>
                 </tr>
                 {openId === r.id && (
-                  <tr key={r.id + "-d"} className="bg-ivory">
+                  <tr className="bg-ivory">
                     <td colSpan={6} className="p-6">
                       <h3 className="font-serif italic mb-2">Items</h3>
                       <ul className="text-sm divide-y divide-onyx/10 mb-4">
@@ -134,7 +134,7 @@ function QuotationsPage() {
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             ))}
             {rows.length === 0 && (
               <tr>
