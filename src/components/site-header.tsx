@@ -61,6 +61,11 @@ export function SiteHeader() {
             </select>
           </div>
           <div className="flex items-center gap-4">
+            {isAdmin && (
+              <Link to="/admin" aria-label="Admin" className="text-gold hover:text-onyx transition-colors" title="Admin panel">
+                <Shield className="w-5 h-5" strokeWidth={1.5} />
+              </Link>
+            )}
             <Link
               to={isAuthenticated ? "/account/profile" : "/account/sign-in"}
               aria-label="Account"
