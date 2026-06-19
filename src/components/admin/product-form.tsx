@@ -131,7 +131,11 @@ export function ProductForm({
       <div className="grid grid-cols-3 gap-4">
         <Field label="Category">
           <select value={category} onChange={(e) => setCategory(e.target.value)} className="input">
-            {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+            {categories.map((c) => (
+              <option key={c.id} value={c.slug}>
+                {c.name}
+              </option>
+            ))}
           </select>
         </Field>
         <Field label="Metal">
