@@ -28,6 +28,9 @@ export function ProductForm({
 }) {
   const qc = useQueryClient();
   const save = useServerFn(saveProduct);
+  const fetchCats = useServerFn(listAllCategories);
+  const catsQ = useQuery({ queryKey: ["admin-categories"], queryFn: () => fetchCats() });
+  const categories = catsQ.data ?? [];
 
   const [name, setName] = useState(initial?.name ?? "");
   const [slug, setSlug] = useState(initial?.slug ?? "");
