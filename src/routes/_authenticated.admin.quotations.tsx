@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { toast } from "sonner";
 import { ExternalLink } from "lucide-react";
 import { listAllQuotations, updateQuotation } from "@/lib/admin/quotations.functions";
@@ -69,8 +69,8 @@ function QuotationsPage() {
           </thead>
           <tbody>
             {rows.map((r: any) => (
-              <>
-                <tr key={r.id} className="border-b border-onyx/5">
+              <Fragment key={r.id}>
+                <tr className="border-b border-onyx/5">
                   <td className="p-4">{new Date(r.created_at).toLocaleDateString()}</td>
                   <td className="p-4">
                     <div>{r.customer?.full_name ?? "—"}</div>
