@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Trash2, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { saveProduct } from "@/lib/admin.functions";
+import { listAllCategories } from "@/lib/admin/categories.functions";
 import type { ProductRow } from "@/lib/products.functions";
 
-const CATEGORIES = ["rings", "necklaces", "earrings", "bracelets", "bangles", "pendants"];
 const METALS = ["gold", "rose gold", "silver", "platinum"];
 const GEMSTONES = ["diamond", "ruby", "emerald", "sapphire", "pearl", "none"];
 
@@ -28,6 +28,9 @@ export function ProductForm({
 }) {
   const qc = useQueryClient();
   const save = useServerFn(saveProduct);
+  const fetchCats = useServerFn(listAllCategories);
+  const catsQ = useQuery({ queryKey: ["admin-categories"], queryFn: () => fetchCats() });
+  const categories = catsQ.data ?? [];
 
   const [name, setName] = useState(initial?.name ?? "");
   const [slug, setSlug] = useState(initial?.slug ?? "");
@@ -128,7 +131,11 @@ export function ProductForm({
       <div className="grid grid-cols-3 gap-4">
         <Field label="Category">
           <select value={category} onChange={(e) => setCategory(e.target.value)} className="input">
-            {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+            {categories.map((c) => (
+              <option key={c.id} value={c.slug}>
+                {c.name}
+              </option>
+            ))}
           </select>
         </Field>
         <Field label="Metal">

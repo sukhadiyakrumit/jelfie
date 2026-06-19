@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { listProducts } from "@/lib/products.functions";
-import { deleteProduct, checkIsAdmin, claimAdmin } from "@/lib/admin.functions";
+import { deleteProduct } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/products/")({
   component: AdminProductsList,
@@ -13,22 +13,10 @@ export const Route = createFileRoute("/_authenticated/admin/products/")({
 function AdminProductsList() {
   const router = useRouter();
   const qc = useQueryClient();
-  const fetchCheck = useServerFn(checkIsAdmin);
   const fetchProducts = useServerFn(listProducts);
   const doDelete = useServerFn(deleteProduct);
-  const doClaim = useServerFn(claimAdmin);
 
-  const adminCheck = useQuery({ queryKey: ["admin-check"], queryFn: () => fetchCheck() });
   const productsQ = useQuery({ queryKey: ["products"], queryFn: () => fetchProducts() });
-
-  const claimMut = useMutation({
-    mutationFn: () => doClaim(),
-    onSuccess: () => {
-      toast.success("Admin role granted");
-      qc.invalidateQueries({ queryKey: ["admin-check"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => doDelete({ data: { id } }),
@@ -40,39 +28,18 @@ function AdminProductsList() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (adminCheck.isLoading) return <div className="p-12 text-onyx/60">Loading…</div>;
-
-  if (adminCheck.data && !adminCheck.data.isAdmin) {
-    return (
-      <div className="max-w-xl mx-auto px-6 py-24 text-center">
-        <h1 className="font-serif text-3xl italic mb-4">Claim admin access</h1>
-        <p className="text-onyx/60 text-sm mb-8">
-          No admin exists yet. Click below to make this account the catalogue administrator. This
-          can only be done once.
-        </p>
-        <button
-          onClick={() => claimMut.mutate()}
-          disabled={claimMut.isPending}
-          className="px-10 py-4 bg-onyx text-ivory text-[11px] uppercase tracking-[0.3em] hover:bg-gold disabled:opacity-50"
-        >
-          {claimMut.isPending ? "Granting…" : "Claim admin"}
-        </button>
-      </div>
-    );
-  }
-
   const products = productsQ.data ?? [];
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-12">
-      <div className="flex items-center justify-between mb-10">
+    <div className="px-10 py-10">
+      <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="font-serif text-4xl italic">Products</h1>
           <p className="text-onyx/60 text-sm mt-1">{products.length} pieces in catalogue</p>
         </div>
         <Link
           to="/admin/products/new"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-onyx text-ivory text-[11px] uppercase tracking-[0.3em] hover:bg-gold"
+          className="inline-flex items-center gap-2 px-6 py-2.5 bg-onyx text-ivory text-[11px] uppercase tracking-[0.3em] hover:bg-gold"
         >
           <Plus className="w-4 h-4" />
           New product

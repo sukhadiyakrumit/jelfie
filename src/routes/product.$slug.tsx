@@ -9,6 +9,7 @@ import { getProductBySlug } from "@/lib/products.functions";
 import { useCurrency } from "@/lib/currency";
 import { useCart, useWishlist } from "@/lib/cart";
 import { useWhatsappQuote } from "@/lib/use-whatsapp-quote";
+import { ProductReviews } from "@/components/product-reviews";
 
 const productQuery = (slug: string) =>
   queryOptions({
@@ -180,6 +181,10 @@ function ProductPage() {
             delivery.
           </p>
         </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 pb-16">
+        <ProductReviews productId={product.id} />
       </div>
 
       <SiteFooter />

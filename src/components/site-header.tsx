@@ -1,14 +1,28 @@
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Heart, ShoppingBag, User } from "lucide-react";
+import { Heart, ShoppingBag, User, Shield } from "lucide-react";
 import { useCart, useWishlist } from "@/lib/cart";
 import { CURRENCIES, useCurrency } from "@/lib/currency";
 import { useAuthUser } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 
 export function SiteHeader() {
   const { count: cartCount } = useCart();
   const { count: wishCount } = useWishlist();
   const { currency, setCurrency } = useCurrency();
-  const { isAuthenticated } = useAuthUser();
+  const { isAuthenticated, user } = useAuthUser();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!user) return setIsAdmin(false);
+    supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .maybeSingle()
+      .then(({ data }) => setIsAdmin(!!data));
+  }, [user]);
 
   return (
     <header className="sticky top-0 z-50 bg-ivory/90 backdrop-blur-md border-b border-onyx/5">
@@ -47,6 +61,11 @@ export function SiteHeader() {
             </select>
           </div>
           <div className="flex items-center gap-4">
+            {isAdmin && (
+              <Link to="/admin" aria-label="Admin" className="text-gold hover:text-onyx transition-colors" title="Admin panel">
+                <Shield className="w-5 h-5" strokeWidth={1.5} />
+              </Link>
+            )}
             <Link
               to={isAuthenticated ? "/account/profile" : "/account/sign-in"}
               aria-label="Account"
