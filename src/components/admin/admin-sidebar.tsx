@@ -44,7 +44,7 @@ export function AdminSidebar() {
           return (
             <Link
               key={n.to}
-              to={n.to}
+              to={n.to as string}
               className={`flex items-center gap-3 px-6 py-2.5 text-[12px] uppercase tracking-widest transition-colors ${
                 active ? "bg-gold/20 text-gold border-l-2 border-gold" : "text-ivory/70 hover:text-gold"
               }`}
