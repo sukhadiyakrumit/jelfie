@@ -1,15 +1,16 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { ExternalLink } from "lucide-react";
 import { listAllQuotations, updateQuotation } from "@/lib/admin/quotations.functions";
+import { STATUS_LABEL } from "@/lib/account/status";
 
 export const Route = createFileRoute("/_authenticated/admin/orders")({
   component: OrdersPage,
 });
 
-const FULFILLMENT_STATUSES = ["contacted", "closed", "paid"];
+const FULFILLMENT_STATUSES = ["contacted","quoted","accepted","payment_pending","paid","processing","shipped","in_transit","delivered","closed"];
 
 function OrdersPage() {
   const fetchList = useServerFn(listAllQuotations);
@@ -65,12 +66,13 @@ function OrdersPage() {
                   >
                     {FULFILLMENT_STATUSES.map((s) => (
                       <option key={s} value={s}>
-                        {s}
+                        {STATUS_LABEL[s] ?? s}
                       </option>
                     ))}
                   </select>
                 </td>
-                <td className="p-4 text-right">
+                <td className="p-4 text-right space-x-3">
+                  <Link to="/admin/orders/$id" params={{ id: r.id }} className="text-gold text-[11px] uppercase tracking-widest">Manage</Link>
                   <a href={r.whatsapp_url} target="_blank" rel="noreferrer" className="text-gold inline-flex">
                     <ExternalLink className="w-4 h-4" />
                   </a>
