@@ -32,7 +32,7 @@ export const updateQuotation = createServerFn({ method: "POST" })
     z
       .object({
         id: z.string().uuid(),
-        status: z.enum(["new", "contacted", "closed", "cancelled", "paid"]).optional(),
+        status: z.enum(["new","contacted","quoted","accepted","payment_pending","paid","processing","shipped","in_transit","delivered","closed","cancelled"]).optional(),
         internal_note: z.string().nullable().optional(),
       })
       .parse(d),

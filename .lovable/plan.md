@@ -1,24 +1,62 @@
-## Root cause
+## Client Portal — Registered Users
 
-Every client/server query to `public.user_roles` is returning `403 permission denied for function has_role`. The RLS policy on `user_roles` calls `private.has_role(auth.uid(), 'admin')`, but `EXECUTE` on that function was never granted to `authenticated` / `anon`. So:
+Adds a complete `/account` portal alongside existing `account.orders.tsx` / `account.profile.tsx` / `wishlist.tsx`. Treats `quote_requests` as orders (status drives the milestone timeline). Admin already records `payments` and updates order status; client side is read-only for those.
 
-- The header's admin-badge check fails (network log shows the 403).
-- The first-time `claimAdmin` path can't read `user_roles`.
-- All admin server functions that call `_shared.requireAdmin()` (Dashboard, Quotations, Categories, Products, Orders, Payments, Users, Feedback) fail — meaning the entire `/admin` panel is broken for everyone.
-- Any other policy that references `private.has_role` (products write, categories write, payments, contact_messages admin view, reviews moderation, etc.) fails the same way.
+### New routes (all under `_authenticated/`)
+```
+/account                  Dashboard (stats + recent activity)
+/account/orders           Order history (existing — enhanced)
+/account/orders/$id       Order detail: timeline, items, documents, payments, invoice, reorder
+/account/shipments        Active shipments (orders with status in shipping pipeline)
+/account/inquiries        Inquiries list (status = new/pending)
+/account/documents        Document Vault (all docs across orders)
+/account/wishlist         Saved products (existing — migrated to DB)
+/account/payments         Payment history (read-only)
+/account/profile          Profile + company info + addresses + contacts (enhanced)
+```
+A shared `account-sidebar.tsx` mirrors the admin sidebar pattern.
 
-## Fix
+### Database (one migration)
 
-One migration that:
+1. **Extend `profiles`**: `company_name`, `company_registration`, `tax_id`, `website`, `billing_address` (jsonb), `shipping_address` (jsonb).
+2. **`authorized_contacts`** — multiple contacts per user: `user_id`, `name`, `email`, `phone`, `role`.
+3. **`wishlists`** — `user_id`, `product_id`, unique pair. (Migrates today's localStorage wishlist into DB.)
+4. **Extend `quote_requests`**:
+   - `tracking_number text`, `carrier text`, `estimated_delivery date`
+   - status enum widened to: `new, pending, quoted, accepted, payment_pending, paid, processing, shipped, in_transit, delivered, cancelled` (CHECK constraint replaced).
+5. **`order_status_history`** — `quote_id`, `status`, `note`, `created_by`, `created_at` — drives the milestone timeline. Trigger auto-inserts a row on every `quote_requests.status` change.
+6. **`order_documents`** — `quote_id`, `doc_type` (`invoice|packing_list|bill_of_lading|coa|coo|other`), `file_path`, `file_name`, `uploaded_by`, `uploaded_at`. File bytes live in a new private **`trade-documents`** storage bucket; owner of the quote can read, admin can write.
+7. **`payments`** already exists — add `status` (`pending|completed|failed|refunded`) and `invoice_number` so client can see status.
 
-1. `GRANT EXECUTE ON FUNCTION private.has_role(uuid, app_role) TO authenticated, anon, service_role;`
-2. `GRANT USAGE ON SCHEMA private TO authenticated, anon, service_role;` (required for the role to even resolve `private.has_role`).
-3. Sanity re-grants on `public.user_roles` so `authenticated` can SELECT/INSERT/DELETE (needed for `claimAdmin` and Manage Users), and `service_role` retains ALL.
+RLS for every new table: owner (`auth.uid() = user_id` or via `quote_id → quote_requests.user_id`) can SELECT; admin can ALL via `private.has_role`. GRANTs included in same migration.
 
-No code changes required — once the grants are in place the existing `has_role` RLS checks resolve, the header badge appears for admins, `claimAdmin` works, and every admin server function passes `requireAdmin`.
+### Server functions (`src/lib/account/*.functions.ts`)
+- `getDashboardStats` — counts of orders, active shipments, open inquiries, pending payment.
+- `getMyOrders`, `getMyOrder(id)` — order + items + status history + documents + payments.
+- `getMyShipments`, `getMyInquiries`, `getMyDocuments`, `getMyPayments`.
+- `wishlist.list / add / remove`.
+- `repeatOrder(orderId)` — clones items into cart (returns array; client merges into cart store).
+- `getInvoicePdfData(orderId)` — returns structured invoice JSON; PDF generated client-side with `jspdf` + `jspdf-autotable` (already common pattern, no native deps; Worker-safe since rendering is in browser).
+- `getDocumentSignedUrl(documentId)` — returns a short-lived signed URL from the private bucket after ownership check.
+- `updateProfile`, `contacts.list/add/update/remove`.
 
-## Verification after migration
+### Admin additions (small)
+- Order detail: status dropdown (writes to `quote_requests.status`, trigger logs history), tracking number/carrier/ETA fields, document upload widget (writes to `order_documents` + storage), payment status edit.
+- All gated by existing `requireAdmin`.
 
-- Reload `/` as the signed-in user → `GET /rest/v1/user_roles?...role=eq.admin` returns 200 (rows or empty array, no 403).
-- Visit `/admin` → dashboard loads, sidebar links open without "Forbidden".
-- Manage Users → assign/revoke admin works.
+### Frontend
+- `AccountLayout` with sidebar + outlet.
+- Dashboard cards (Orders, Active Shipments, Open Inquiries, Pending Payment) + recent orders table + recent documents.
+- Order detail page: vertical milestone timeline from `order_status_history`, items table, documents list (download via signed URL), payments table, "Download Invoice PDF" and "Reorder" buttons.
+- Document Vault: filterable table grouped by order.
+- Wishlist: migrated from localStorage to DB-backed; "Add all to cart" + "Request quote".
+- Profile: tabs — Personal, Company, Billing Address, Shipping Address, Authorized Contacts.
+
+### Out of scope (per earlier decisions)
+- No new payments module / no online checkout — payments remain admin-recorded; client only views status.
+- No carrier API integration — tracking is admin-entered.
+
+### Tech notes
+- Invoice PDF: `jspdf` + `jspdf-autotable` in browser (no server image libs → Worker-safe).
+- Storage bucket `trade-documents` created via `supabase--storage_create_bucket` (private); RLS on `storage.objects` restricts read to order owner + admin.
+- Realtime subscription on `quote_requests` + `order_status_history` for the open order detail page so status updates appear live.

@@ -24,7 +24,7 @@ export const Route = createFileRoute("/account/sign-in")({
 function SignInPage() {
   const navigate = useNavigate();
   const { redirect } = useSearch({ from: "/account/sign-in" });
-  const dest = redirect && redirect.startsWith("/") ? redirect : "/account/profile";
+  const dest = redirect && redirect.startsWith("/") ? redirect : "/account";
 
   const [tab, setTab] = useState<"email" | "phone">("email");
   const [email, setEmail] = useState("");

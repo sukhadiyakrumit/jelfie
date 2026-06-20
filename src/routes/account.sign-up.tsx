@@ -23,7 +23,7 @@ export const Route = createFileRoute("/account/sign-up")({
 function SignUpPage() {
   const navigate = useNavigate();
   const { redirect } = useSearch({ from: "/account/sign-up" });
-  const dest = redirect && redirect.startsWith("/") ? redirect : "/account/profile";
+  const dest = redirect && redirect.startsWith("/") ? redirect : "/account";
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
