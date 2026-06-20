@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      authorized_contacts: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          role: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          role?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          role?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
@@ -89,41 +122,120 @@ export type Database = {
         }
         Relationships: []
       }
+      order_documents: {
+        Row: {
+          created_at: string
+          doc_type: string
+          file_name: string
+          file_path: string
+          id: string
+          quote_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          doc_type: string
+          file_name: string
+          file_path: string
+          id?: string
+          quote_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          doc_type?: string
+          file_name?: string
+          file_path?: string
+          id?: string
+          quote_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_documents_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quote_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_status_history: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          note: string | null
+          quote_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          quote_id: string
+          status: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          quote_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_status_history_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quote_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount_usd: number
           created_at: string
           id: string
+          invoice_number: string | null
           method: string
           notes: string | null
           paid_at: string
           quote_id: string
           recorded_by: string | null
           reference: string | null
+          status: string
           updated_at: string
         }
         Insert: {
           amount_usd: number
           created_at?: string
           id?: string
+          invoice_number?: string | null
           method: string
           notes?: string | null
           paid_at?: string
           quote_id: string
           recorded_by?: string | null
           reference?: string | null
+          status?: string
           updated_at?: string
         }
         Update: {
           amount_usd?: number
           created_at?: string
           id?: string
+          invoice_number?: string | null
           method?: string
           notes?: string | null
           paid_at?: string
           quote_id?: string
           recorded_by?: string | null
           reference?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: [
@@ -272,38 +384,56 @@ export type Database = {
         Row: {
           address_line1: string | null
           address_line2: string | null
+          billing_address: Json | null
           city: string | null
+          company_name: string | null
+          company_registration: string | null
           country: string | null
           created_at: string
           full_name: string | null
           id: string
           phone: string | null
           postal_code: string | null
+          shipping_address: Json | null
+          tax_id: string | null
           updated_at: string
+          website: string | null
         }
         Insert: {
           address_line1?: string | null
           address_line2?: string | null
+          billing_address?: Json | null
           city?: string | null
+          company_name?: string | null
+          company_registration?: string | null
           country?: string | null
           created_at?: string
           full_name?: string | null
           id: string
           phone?: string | null
           postal_code?: string | null
+          shipping_address?: Json | null
+          tax_id?: string | null
           updated_at?: string
+          website?: string | null
         }
         Update: {
           address_line1?: string | null
           address_line2?: string | null
+          billing_address?: Json | null
           city?: string | null
+          company_name?: string | null
+          company_registration?: string | null
           country?: string | null
           created_at?: string
           full_name?: string | null
           id?: string
           phone?: string | null
           postal_code?: string | null
+          shipping_address?: Json | null
+          tax_id?: string | null
           updated_at?: string
+          website?: string | null
         }
         Relationships: []
       }
@@ -360,35 +490,44 @@ export type Database = {
       }
       quote_requests: {
         Row: {
+          carrier: string | null
           created_at: string
           currency: string
+          estimated_delivery: string | null
           id: string
           internal_note: string | null
           note: string | null
           status: string
           total_usd: number
+          tracking_number: string | null
           user_id: string
           whatsapp_url: string
         }
         Insert: {
+          carrier?: string | null
           created_at?: string
           currency?: string
+          estimated_delivery?: string | null
           id?: string
           internal_note?: string | null
           note?: string | null
           status?: string
           total_usd?: number
+          tracking_number?: string | null
           user_id: string
           whatsapp_url: string
         }
         Update: {
+          carrier?: string | null
           created_at?: string
           currency?: string
+          estimated_delivery?: string | null
           id?: string
           internal_note?: string | null
           note?: string | null
           status?: string
           total_usd?: number
+          tracking_number?: string | null
           user_id?: string
           whatsapp_url?: string
         }
@@ -414,6 +553,35 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      wishlists: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wishlists_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
