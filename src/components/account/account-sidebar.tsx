@@ -12,7 +12,8 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
-const NAV = [
+type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
+const NAV: NavItem[] = [
   { to: "/account", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/account/orders", label: "Orders", icon: ShoppingBag },
   { to: "/account/shipments", label: "Shipments", icon: Truck },
@@ -21,7 +22,7 @@ const NAV = [
   { to: "/account/wishlist", label: "Wishlist", icon: Heart },
   { to: "/account/payments", label: "Payments", icon: CreditCard },
   { to: "/account/profile", label: "Profile", icon: UserCircle },
-] as const;
+];
 
 export function AccountSidebar() {
   const navigate = useNavigate();
