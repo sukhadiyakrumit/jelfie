@@ -67,13 +67,13 @@ export function SiteHeader() {
               </Link>
             )}
             <Link
-              to={isAuthenticated ? "/account/profile" : "/account/sign-in"}
+              to={isAuthenticated ? "/account" : "/account/sign-in"}
               aria-label="Account"
               className="text-onyx hover:text-gold transition-colors"
             >
               <User className="w-5 h-5" strokeWidth={1.5} />
             </Link>
-            <Link to="/wishlist" aria-label="Wishlist" className="relative text-onyx hover:text-gold transition-colors">
+            <Link to={isAuthenticated ? "/account/wishlist" : "/account/sign-in"} aria-label="Wishlist" className="relative text-onyx hover:text-gold transition-colors">
               <Heart className="w-5 h-5" strokeWidth={1.5} />
               {wishCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-gold text-onyx rounded-full text-[9px] font-medium flex items-center justify-center">
