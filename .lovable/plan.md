@@ -1,57 +1,24 @@
-## Admin Panel Expansion
+## Root cause
 
-Build a complete admin panel under `/admin/*` with a persistent sidebar, gated to users with the `admin` role. All sections are fully functional and wired to real data.
+Every client/server query to `public.user_roles` is returning `403 permission denied for function has_role`. The RLS policy on `user_roles` calls `private.has_role(auth.uid(), 'admin')`, but `EXECUTE` on that function was never granted to `authenticated` / `anon`. So:
 
-### Sections
+- The header's admin-badge check fails (network log shows the 403).
+- The first-time `claimAdmin` path can't read `user_roles`.
+- All admin server functions that call `_shared.requireAdmin()` (Dashboard, Quotations, Categories, Products, Orders, Payments, Users, Feedback) fail — meaning the entire `/admin` panel is broken for everyone.
+- Any other policy that references `private.has_role` (products write, categories write, payments, contact_messages admin view, reviews moderation, etc.) fails the same way.
 
-1. **AdminDashboard** (`/admin`) — KPI cards (total products, pending quotes, users, revenue-equivalent in USD from quotes), recent quotes table, top products.
-2. **AdminProfile** (`/admin/profile`) — Admin's own full profile + change password.
-3. **ManageQuotation** (`/admin/quotations`) — Replaces "Orders". List all `quote_requests` with customer, items, total, status, expected date of delivery. Update status (new → contacted → closed → cancelled), reopen WhatsApp, add internal note.
-4. **ManageProductCategories** (`/admin/categories`) — New `categories` table (name, slug, description, image, sort_order, is_active). CRUD.
-5. **ManageProduct** (`/admin/products`) — Existing screen, updated to pick category from new table (migrate text → FK).
-6. **ManageOrder** (`/admin/orders`) — Alias view of quotations filtered to `status in (contacted, closed)` — i.e. "active orders" workflow. Same data, different filter/columns (fulfillment-focused).
-7. **ManagePayments** (`/admin/payments`) — New `payments` table (quote_id, amount_usd, method, reference, paid_at, notes). Admin manually records payments against a quote. Marks quote as paid.
-8. **ManageUsers** (`/admin/users`) — List all users (joined profiles + auth.users via admin client), view profile, assign/revoke `admin` role, view their quote history.
-9. **ManageFeedback** (`/admin/feedback`) — Two tabs:
-  - **Contact messages** — new `contact_messages` table fed by a new public `/contact` form (name, email, subject, message, status).
-  - **Product reviews** — new `product_reviews` table (product_id, user_id, rating 1-5, comment, is_approved). Customers submit on product page when logged in; admin approves/hides.
+## Fix
 
-### Routing & access
+One migration that:
 
-- Move admin routes into `src/routes/_authenticated/admin.*` (already pathless-protected).
-- Add a second gate layout `_authenticated/admin/route.tsx` (`beforeLoad` calls `requireAdmin` server fn checking `has_role(uid, 'admin')`; redirects non-admins to `/`).
-- New admin shell with shadcn `Sidebar` (collapsible, icon-mini): Dashboard, Profile, Quotations, Orders, Payments, Categories, Products, Users, Feedback, Sign out.
-- Remove the simple top-bar admin header; sidebar replaces it.
+1. `GRANT EXECUTE ON FUNCTION private.has_role(uuid, app_role) TO authenticated, anon, service_role;`
+2. `GRANT USAGE ON SCHEMA private TO authenticated, anon, service_role;` (required for the role to even resolve `private.has_role`).
+3. Sanity re-grants on `public.user_roles` so `authenticated` can SELECT/INSERT/DELETE (needed for `claimAdmin` and Manage Users), and `service_role` retains ALL.
 
-### Database changes (one migration)
+No code changes required — once the grants are in place the existing `has_role` RLS checks resolve, the header badge appears for admins, `claimAdmin` works, and every admin server function passes `requireAdmin`.
 
-- `categories` table + GRANTs + RLS (public SELECT, admin write via `has_role`).
-- `products.category_id uuid references categories(id)`; data backfill from existing text `category`; keep old column nullable for transition then drop.
-- `payments` table (admin-only RLS).
-- `contact_messages` table (anon INSERT, admin SELECT/UPDATE).
-- `product_reviews` table (auth INSERT own, public SELECT where approved, admin all).
-- `quote_requests`: add `internal_note text`, expand `status` check (`new|contacted|closed|cancelled|paid`).
-- Seed default categories (Rings, Necklaces, Earrings, Bracelets).
+## Verification after migration
 
-### Server functions (all `requireSupabaseAuth` + admin check helper)
-
-`src/lib/admin/*.functions.ts`: dashboard stats, list/update quotations, CRUD categories, CRUD payments, list users + role mgmt, list/approve feedback & reviews. Public fns: `submitContactMessage`, `submitProductReview` (auth required).
-
-### Storefront touches (minimal)
-
-- `/contact` page: add working form posting to `submitContactMessage`.
-- Product page: "Write a review" section for logged-in users + display approved reviews & avg rating.
-- Shop filters: use categories table.
-
-### Out of scope
-
-- Real payment gateway (manual entries only, per your answer).
-- Email notifications to customers on status change.
-- Bulk import/export.
-
-### Technical notes
-
-- `requireAdmin` middleware = `requireSupabaseAuth` + `has_role(userId,'admin')` check; throws 403 otherwise.
-- User listing uses `supabaseAdmin.auth.admin.listUsers()` inside handler (load via `await import`).
-- Sidebar uses existing shadcn `Sidebar` components; active route via `useRouterState`.
-- First admin: SQL helper note — assign `admin` role via migration to a specified email, or via a one-time bootstrap server fn if no admin exists yet.
+- Reload `/` as the signed-in user → `GET /rest/v1/user_roles?...role=eq.admin` returns 200 (rows or empty array, no 403).
+- Visit `/admin` → dashboard loads, sidebar links open without "Forbidden".
+- Manage Users → assign/revoke admin works.
