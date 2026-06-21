@@ -123,6 +123,7 @@ export function useWhatsappQuote() {
           currency: args.currency,
           totalUsd: args.subtotalUsd,
           whatsappUrl: url,
+          orderType: "quotation",
           items: args.items.map((i) => ({
             productId: i.productId,
             name: i.name,
