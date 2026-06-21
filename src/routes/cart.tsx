@@ -27,6 +27,46 @@ function CartPage() {
   const { items, updateQty, removeItem, subtotalUsd, count, clear } = useCart();
   const { format, currency } = useCurrency();
   const { sendCartQuote, busy: quoteBusy } = useWhatsappQuote();
+  const placeInstant = useServerFn(createInstantOrder);
+  const navigate = useNavigate();
+  const [instantBusy, setInstantBusy] = useState(false);
+
+  const recommendInstant = subtotalUsd > 0 && subtotalUsd < INSTANT_THRESHOLD_USD;
+
+  async function handleInstantCheckout() {
+    if (instantBusy || items.length === 0) return;
+    setInstantBusy(true);
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) {
+        toast.message("Please sign in to check out");
+        navigate({ to: "/account/sign-in", search: { redirect: "/cart" } });
+        return;
+      }
+      const res = await placeInstant({
+        data: {
+          currency,
+          totalUsd: subtotalUsd,
+          items: items.map((i) => ({
+            productId: i.productId,
+            name: i.name,
+            slug: i.slug,
+            priceUsd: i.priceUsd,
+            quantity: i.qty,
+            imageUrl: i.image,
+          })),
+        },
+      });
+      clear();
+      toast.success("Order placed — awaiting payment confirmation");
+      navigate({ to: "/account/orders/$id", params: { id: res.id } });
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setInstantBusy(false);
+    }
+  }
+
 
   return (
     <div className="min-h-screen bg-ivory text-onyx">
