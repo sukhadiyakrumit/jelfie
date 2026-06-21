@@ -80,8 +80,15 @@ function AdminOrderDetail() {
 
   return (
     <div className="px-10 py-10 max-w-5xl">
-      <Link to="/admin/orders" className="text-[10px] uppercase tracking-widest text-onyx/60 hover:text-gold">← Back to orders</Link>
-      <h1 className="font-serif text-4xl italic mt-2 mb-1">Order #{order.id.slice(0, 8).toUpperCase()}</h1>
+      <Link to={order.order_type === "quotation" ? "/admin/quotations" : "/admin/orders"} className="text-[10px] uppercase tracking-widest text-onyx/60 hover:text-gold">← Back</Link>
+      <div className="flex items-center gap-3 mt-2 mb-1">
+        <h1 className="font-serif text-4xl italic">
+          {order.order_type === "instant" ? "Order" : "Quotation"} #{order.id.slice(0, 8).toUpperCase()}
+        </h1>
+        <span className={`text-[10px] uppercase tracking-widest px-2 py-1 ${order.order_type === "instant" ? "bg-gold/20 text-gold" : "bg-onyx/10 text-onyx"}`}>
+          {order.order_type === "instant" ? "Instant Commerce" : "Private Consultation"}
+        </span>
+      </div>
       <p className="text-onyx/60 text-sm mb-6">
         {customer?.company_name ?? customer?.full_name ?? "—"} · {customer?.phone ?? ""}
       </p>
