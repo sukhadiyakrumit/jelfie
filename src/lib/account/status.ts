@@ -38,6 +38,6 @@ export function statusBadgeClass(status: string) {
   if (["delivered", "paid"].includes(status)) return "bg-green-100 text-green-800";
   if (["shipped", "in_transit", "processing"].includes(status)) return "bg-blue-100 text-blue-800";
   if (["cancelled"].includes(status)) return "bg-red-100 text-red-800";
-  if (["payment_pending", "quoted", "accepted"].includes(status)) return "bg-amber-100 text-amber-800";
+  if (["payment_pending", "pending_payment", "quoted", "accepted"].includes(status)) return "bg-amber-100 text-amber-800";
   return "bg-onyx/10 text-onyx/70";
 }
