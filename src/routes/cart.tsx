@@ -151,48 +151,97 @@ function CartPage() {
               ))}
             </div>
 
-            <div className="mt-10 flex flex-col items-end gap-6">
-              <div className="flex items-baseline gap-6">
-                <span className="text-[11px] uppercase tracking-[0.3em] text-onyx/60">Estimated subtotal</span>
-                <span className="font-serif text-3xl italic">{format(subtotalUsd)}</span>
-              </div>
-              <p className="text-xs text-onyx/40 max-w-md text-right">
-                Final pricing, taxes and shipping are confirmed via WhatsApp with our team.
-              </p>
-              <div className="flex flex-wrap gap-3 justify-end">
+            <div className="mt-10 grid md:grid-cols-2 gap-6">
+              <div className="border border-onyx/10 bg-white p-6 flex flex-col">
+                <span className="text-[10px] uppercase tracking-[0.3em] text-onyx/50">Subtotal (USD)</span>
+                <span className="font-serif text-3xl italic mt-2">${subtotalUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                <p className="text-xs text-onyx/50 mt-3">
+                  Displayed in {currency}: {format(subtotalUsd)}
+                </p>
+                <p className="text-xs text-onyx/50 mt-4">
+                  Orders under ${INSTANT_THRESHOLD_USD} qualify for <strong>Instant Checkout</strong>.
+                  Larger orders are best handled through our <strong>Private Consultation</strong> track.
+                </p>
                 <button
                   onClick={() => clear()}
-                  className="px-6 py-3 border border-onyx/20 text-[11px] uppercase tracking-[0.3em] hover:border-onyx"
+                  className="mt-auto pt-6 text-[11px] uppercase tracking-[0.3em] text-onyx/50 hover:text-onyx self-start"
                 >
                   Clear selection
                 </button>
-                <button
-                  type="button"
-                  disabled={quoteBusy}
-                  onClick={() =>
-                    sendCartQuote(
-                      {
-                        items: items.map((i) => ({
-                          productId: i.productId,
-                          slug: i.slug,
-                          name: i.name,
-                          priceUsd: i.priceUsd,
-                          qty: i.qty,
-                          image: i.image,
-                        })),
-                        currency,
-                        format,
-                        subtotalUsd,
-                      },
-                      "/cart",
-                    )
-                  }
-                  className="px-10 py-4 bg-onyx text-ivory text-[11px] uppercase tracking-[0.3em] hover:bg-gold disabled:opacity-50"
-                >
-                  {quoteBusy ? "Opening…" : "Send quote request on WhatsApp"}
-                </button>
+              </div>
+
+              <div className="space-y-3">
+                {/* Instant Commerce Track */}
+                <div className={`border p-5 ${recommendInstant ? "border-gold bg-gold/5" : "border-onyx/10 bg-white"}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] uppercase tracking-[0.3em] text-gold">Instant Commerce</span>
+                    {recommendInstant && (
+                      <span className="text-[9px] uppercase tracking-widest bg-gold text-ivory px-2 py-0.5">Recommended</span>
+                    )}
+                  </div>
+                  <p className="font-serif text-xl italic">Checkout now</p>
+                  <p className="text-xs text-onyx/60 mt-1">
+                    Place the order immediately. Our team will confirm payment and ship within 24 hours.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={instantBusy}
+                    onClick={handleInstantCheckout}
+                    className={`mt-4 w-full px-6 py-3 text-[11px] uppercase tracking-[0.3em] disabled:opacity-50 ${
+                      recommendInstant
+                        ? "bg-onyx text-ivory hover:bg-gold"
+                        : "border border-onyx/30 text-onyx hover:border-onyx"
+                    }`}
+                  >
+                    {instantBusy ? "Placing order…" : "Instant Checkout & Pay"}
+                  </button>
+                </div>
+
+                {/* Private Consultation Track */}
+                <div className={`border p-5 ${!recommendInstant ? "border-gold bg-gold/5" : "border-onyx/10 bg-white"}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] uppercase tracking-[0.3em] text-gold">Private Consultation</span>
+                    {!recommendInstant && subtotalUsd > 0 && (
+                      <span className="text-[9px] uppercase tracking-widest bg-gold text-ivory px-2 py-0.5">Recommended</span>
+                    )}
+                  </div>
+                  <p className="font-serif text-xl italic">Request a quotation</p>
+                  <p className="text-xs text-onyx/60 mt-1">
+                    Tailored pricing, bulk discounts and bespoke terms — discussed on WhatsApp with our team.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={quoteBusy}
+                    onClick={() =>
+                      sendCartQuote(
+                        {
+                          items: items.map((i) => ({
+                            productId: i.productId,
+                            slug: i.slug,
+                            name: i.name,
+                            priceUsd: i.priceUsd,
+                            qty: i.qty,
+                            image: i.image,
+                          })),
+                          currency,
+                          format,
+                          subtotalUsd,
+                        },
+                        "/cart",
+                      )
+                    }
+                    className={`mt-4 w-full px-6 py-3 text-[11px] uppercase tracking-[0.3em] disabled:opacity-50 ${
+                      !recommendInstant
+                        ? "bg-onyx text-ivory hover:bg-gold"
+                        : "border border-onyx/30 text-onyx hover:border-onyx"
+                    }`}
+                  >
+                    {quoteBusy ? "Opening WhatsApp…" : "Request Quotation on WhatsApp"}
+                  </button>
+                </div>
               </div>
             </div>
+
           </>
         )}
       </section>
