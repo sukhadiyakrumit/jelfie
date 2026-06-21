@@ -78,6 +78,7 @@ export function useWhatsappQuote() {
           currency: args.currency,
           totalUsd: args.priceUsd,
           whatsappUrl: url,
+          orderType: "quotation",
           items: [
             {
               productId: args.productId,
