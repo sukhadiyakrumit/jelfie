@@ -4,6 +4,7 @@ export const STATUS_LABEL: Record<string, string> = {
   quoted: "Quoted",
   accepted: "Accepted",
   payment_pending: "Payment Pending",
+  pending_payment: "Awaiting Payment",
   paid: "Paid",
   processing: "Processing",
   shipped: "Shipped",
