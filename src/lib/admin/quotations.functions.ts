@@ -45,7 +45,7 @@ export const updateQuotation = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { id, status, internal_note } = data;
-    const patch: Record<string, unknown> = {};
+    const patch: { status?: string; internal_note?: string | null; paid_at?: string } = {};
     if (status !== undefined) {
       patch.status = status;
       if (status === "paid") patch.paid_at = new Date().toISOString();
