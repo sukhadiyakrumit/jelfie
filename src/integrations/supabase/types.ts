@@ -497,7 +497,11 @@ export type Database = {
           id: string
           internal_note: string | null
           note: string | null
+          order_type: string
+          paid_at: string | null
           status: string
+          stripe_payment_intent: string | null
+          stripe_session_id: string | null
           total_usd: number
           tracking_number: string | null
           user_id: string
@@ -511,7 +515,11 @@ export type Database = {
           id?: string
           internal_note?: string | null
           note?: string | null
+          order_type?: string
+          paid_at?: string | null
           status?: string
+          stripe_payment_intent?: string | null
+          stripe_session_id?: string | null
           total_usd?: number
           tracking_number?: string | null
           user_id: string
@@ -525,7 +533,11 @@ export type Database = {
           id?: string
           internal_note?: string | null
           note?: string | null
+          order_type?: string
+          paid_at?: string | null
           status?: string
+          stripe_payment_intent?: string | null
+          stripe_session_id?: string | null
           total_usd?: number
           tracking_number?: string | null
           user_id?: string
