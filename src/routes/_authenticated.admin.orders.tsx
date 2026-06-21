@@ -76,16 +76,13 @@ function OrdersPage() {
                 </td>
                 <td className="p-4 text-right space-x-3">
                   <Link to="/admin/orders/$id" params={{ id: r.id }} className="text-gold text-[11px] uppercase tracking-widest">Manage</Link>
-                  <a href={r.whatsapp_url} target="_blank" rel="noreferrer" className="text-gold inline-flex">
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
                 </td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
                 <td colSpan={6} className="p-12 text-center text-onyx/40 italic font-serif">
-                  No active orders. Move quotes to "Contacted" or beyond to track them here.
+                  No instant orders yet.
                 </td>
               </tr>
             )}
