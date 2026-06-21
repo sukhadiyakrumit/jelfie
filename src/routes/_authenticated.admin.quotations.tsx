@@ -19,7 +19,7 @@ function QuotationsPage() {
   const [filter, setFilter] = useState<string>("all");
   const [openId, setOpenId] = useState<string | null>(null);
 
-  const q = useQuery({ queryKey: ["admin-quotations"], queryFn: () => fetchList() });
+  const q = useQuery({ queryKey: ["admin-quotations"], queryFn: () => fetchList({ data: { orderType: "quotation" } }) });
 
   const m = useMutation({
     mutationFn: (input: { id: string; status?: string; internal_note?: string | null }) =>
