@@ -10,29 +10,32 @@ export const Route = createFileRoute("/_authenticated/admin/orders")({
   component: OrdersPage,
 });
 
-const FULFILLMENT_STATUSES = ["contacted","quoted","accepted","payment_pending","paid","processing","shipped","in_transit","delivered","closed"];
+const FULFILLMENT_STATUSES = ["pending_payment","paid","processing","shipped","in_transit","delivered","closed","cancelled"];
 
 function OrdersPage() {
   const fetchList = useServerFn(listAllQuotations);
   const doUpdate = useServerFn(updateQuotation);
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ["admin-quotations"], queryFn: () => fetchList() });
+  const q = useQuery({
+    queryKey: ["admin-orders-instant"],
+    queryFn: () => fetchList({ data: { orderType: "instant" } }),
+  });
 
   const m = useMutation({
     mutationFn: (input: { id: string; status: string }) => doUpdate({ data: input as any }),
     onSuccess: () => {
       toast.success("Updated");
-      qc.invalidateQueries({ queryKey: ["admin-quotations"] });
+      qc.invalidateQueries({ queryKey: ["admin-orders-instant"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const rows = (q.data ?? []).filter((r: any) => FULFILLMENT_STATUSES.includes(r.status));
+  const rows = q.data ?? [];
 
   return (
     <div className="px-10 py-10">
-      <h1 className="font-serif text-4xl italic mb-2">Orders</h1>
-      <p className="text-onyx/60 text-sm mb-8">Confirmed quotes in fulfilment ({rows.length})</p>
+      <h1 className="font-serif text-4xl italic mb-2">Instant Orders</h1>
+      <p className="text-onyx/60 text-sm mb-8">Direct checkout orders from the Instant Commerce track ({rows.length})</p>
 
       <div className="border border-onyx/10 bg-white">
         <table className="w-full text-sm">
