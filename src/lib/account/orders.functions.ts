@@ -3,7 +3,6 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const ACTIVE_SHIPMENT = ["processing", "shipped", "in_transit"];
-const OPEN_INQUIRY = ["new", "contacted"];
 
 export const getMyOrders = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -12,9 +11,10 @@ export const getMyOrders = createServerFn({ method: "GET" })
     const { data, error } = await supabase
       .from("quote_requests")
       .select(
-        "id, created_at, currency, total_usd, status, tracking_number, carrier, estimated_delivery, whatsapp_url, quote_request_items(id, name, slug, price_usd, quantity, image_url)",
+        "id, created_at, currency, total_usd, status, order_type, tracking_number, carrier, estimated_delivery, whatsapp_url, quote_request_items(id, name, slug, price_usd, quantity, image_url)",
       )
       .eq("user_id", userId)
+      .eq("order_type", "instant")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
@@ -26,7 +26,7 @@ export const getMyShipments = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("quote_requests")
-      .select("id, created_at, status, total_usd, tracking_number, carrier, estimated_delivery")
+      .select("id, created_at, status, total_usd, order_type, tracking_number, carrier, estimated_delivery")
       .eq("user_id", userId)
       .in("status", ACTIVE_SHIPMENT)
       .order("created_at", { ascending: false });
@@ -40,9 +40,9 @@ export const getMyInquiries = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("quote_requests")
-      .select("id, created_at, status, total_usd, note, quote_request_items(id, name, quantity)")
+      .select("id, created_at, status, total_usd, order_type, note, quote_request_items(id, name, quantity)")
       .eq("user_id", userId)
-      .in("status", OPEN_INQUIRY)
+      .eq("order_type", "quotation")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
