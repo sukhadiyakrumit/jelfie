@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ExternalLink } from "lucide-react";
+// (ExternalLink removed — instant orders have no WhatsApp link)
 import { listAllQuotations, updateQuotation } from "@/lib/admin/quotations.functions";
 import { STATUS_LABEL } from "@/lib/account/status";
 
@@ -10,29 +10,32 @@ export const Route = createFileRoute("/_authenticated/admin/orders")({
   component: OrdersPage,
 });
 
-const FULFILLMENT_STATUSES = ["contacted","quoted","accepted","payment_pending","paid","processing","shipped","in_transit","delivered","closed"];
+const FULFILLMENT_STATUSES = ["pending_payment","paid","processing","shipped","in_transit","delivered","closed","cancelled"];
 
 function OrdersPage() {
   const fetchList = useServerFn(listAllQuotations);
   const doUpdate = useServerFn(updateQuotation);
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ["admin-quotations"], queryFn: () => fetchList() });
+  const q = useQuery({
+    queryKey: ["admin-orders-instant"],
+    queryFn: () => fetchList({ data: { orderType: "instant" } }),
+  });
 
   const m = useMutation({
     mutationFn: (input: { id: string; status: string }) => doUpdate({ data: input as any }),
     onSuccess: () => {
       toast.success("Updated");
-      qc.invalidateQueries({ queryKey: ["admin-quotations"] });
+      qc.invalidateQueries({ queryKey: ["admin-orders-instant"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const rows = (q.data ?? []).filter((r: any) => FULFILLMENT_STATUSES.includes(r.status));
+  const rows = q.data ?? [];
 
   return (
     <div className="px-10 py-10">
-      <h1 className="font-serif text-4xl italic mb-2">Orders</h1>
-      <p className="text-onyx/60 text-sm mb-8">Confirmed quotes in fulfilment ({rows.length})</p>
+      <h1 className="font-serif text-4xl italic mb-2">Instant Orders</h1>
+      <p className="text-onyx/60 text-sm mb-8">Direct checkout orders from the Instant Commerce track ({rows.length})</p>
 
       <div className="border border-onyx/10 bg-white">
         <table className="w-full text-sm">
@@ -73,16 +76,13 @@ function OrdersPage() {
                 </td>
                 <td className="p-4 text-right space-x-3">
                   <Link to="/admin/orders/$id" params={{ id: r.id }} className="text-gold text-[11px] uppercase tracking-widest">Manage</Link>
-                  <a href={r.whatsapp_url} target="_blank" rel="noreferrer" className="text-gold inline-flex">
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
                 </td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
                 <td colSpan={6} className="p-12 text-center text-onyx/40 italic font-serif">
-                  No active orders. Move quotes to "Contacted" or beyond to track them here.
+                  No instant orders yet.
                 </td>
               </tr>
             )}

@@ -15,6 +15,7 @@ type CreateQuoteInput = {
   totalUsd: number;
   whatsappUrl: string;
   note?: string | null;
+  orderType?: "instant" | "quotation";
   items: QuoteItemInput[];
 };
 
@@ -29,6 +30,7 @@ export const createQuoteRequest = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const orderType = data.orderType ?? "quotation";
 
     const { data: quote, error: qErr } = await supabase
       .from("quote_requests")
@@ -38,6 +40,8 @@ export const createQuoteRequest = createServerFn({ method: "POST" })
         total_usd: data.totalUsd,
         whatsapp_url: data.whatsappUrl,
         note: data.note ?? null,
+        order_type: orderType,
+        status: orderType === "instant" ? "pending_payment" : "new",
       })
       .select("id, created_at")
       .single();
@@ -67,7 +71,7 @@ export const listMyQuotes = createServerFn({ method: "GET" })
     const { data, error } = await supabase
       .from("quote_requests")
       .select(
-        "id, created_at, currency, total_usd, whatsapp_url, status, quote_request_items(id, name, slug, price_usd, quantity, image_url)",
+        "id, created_at, currency, total_usd, whatsapp_url, status, order_type, quote_request_items(id, name, slug, price_usd, quantity, image_url)",
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
