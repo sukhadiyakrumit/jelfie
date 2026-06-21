@@ -99,7 +99,14 @@ function OrderDetailPage() {
       </Link>
       <div className="flex flex-wrap items-baseline justify-between gap-3 mt-2 mb-8">
         <div>
-          <h1 className="font-serif text-4xl italic">Order #{order.id.slice(0, 8).toUpperCase()}</h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="font-serif text-4xl italic">
+              {order.order_type === "instant" ? "Order" : "Quotation"} #{order.id.slice(0, 8).toUpperCase()}
+            </h1>
+            <span className={`text-[10px] uppercase tracking-widest px-2 py-1 ${order.order_type === "instant" ? "bg-gold/20 text-gold" : "bg-onyx/10 text-onyx"}`}>
+              {order.order_type === "instant" ? "Instant" : "Quotation"}
+            </span>
+          </div>
           <p className="text-onyx/60 text-sm mt-1">
             Placed {new Date(order.created_at).toLocaleDateString()} ·{" "}
             <span className={`px-2 py-0.5 text-[10px] uppercase tracking-widest ${statusBadgeClass(order.status)}`}>
