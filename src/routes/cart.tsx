@@ -1,10 +1,17 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Minus, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { useCart } from "@/lib/cart";
 import { useCurrency } from "@/lib/currency";
 import { useWhatsappQuote } from "@/lib/use-whatsapp-quote";
+import { createInstantOrder } from "@/lib/checkout.functions";
+import { supabase } from "@/integrations/supabase/client";
+
+const INSTANT_THRESHOLD_USD = 300;
 
 export const Route = createFileRoute("/cart")({
   head: () => ({
