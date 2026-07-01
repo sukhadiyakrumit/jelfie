@@ -178,6 +178,16 @@ function OrderDetailPage() {
                   {i.name}
                 </Link>
                 <p className="text-[11px] text-onyx/50">Qty {i.quantity} · ${Number(i.price_usd).toFixed(2)}</p>
+                {order.status === "delivered" && i.product_id && (
+                  <Link
+                    to="/product/$slug"
+                    params={{ slug: i.slug }}
+                    hash="reviews"
+                    className="inline-block mt-1 text-[10px] uppercase tracking-widest text-gold hover:text-onyx"
+                  >
+                    ★ Leave a review
+                  </Link>
+                )}
               </div>
               <p className="text-sm font-medium">${(Number(i.price_usd) * i.quantity).toFixed(2)}</p>
             </li>
