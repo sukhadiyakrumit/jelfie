@@ -1,83 +1,112 @@
-# Two Front Doors: Instant Checkout vs Private Consultation
+# Quotation → Contract → Payment → Order → Feedback Flow
 
-Split the cart flow into two tracks and surface each as a separate order type across the user profile and admin panel. The $300 cutoff (computed on cart subtotal converted to USD from displayed currency) is a **soft rule**: both buttons show on every cart, but the UI highlights the recommended one.
+Extend the existing "Request Quotation" path (orders ≥ $1000) into a complete lifecycle. Instant checkout (< $1000) stays untouched.
 
-## Recommended track logic
+## Status Lifecycle (quotation orders)
 
-- `subtotalUsd < 300` → **Instant Checkout** highlighted (primary button), Quotation shown as secondary "Prefer to discuss? Request a quote".
-- `subtotalUsd ≥ 300` → **Request Quotation** highlighted (primary), Instant Checkout shown as secondary "Or check out now".
-- Empty cart → neither.
+```text
+new  →  quoted  →  accepted  →  paid  →  processing  →  shipped  →  in_transit  →  delivered  →  closed
+              ↘  cancelled (user rejects)
+              ↘  cancelled (admin cancels)
+```
 
-## Database (1 migration)
+- `new` — user submitted request. Admin sees it in Quotations.
+- `quoted` — admin entered `final_price_usd` and (optional) note. User is notified in Account.
+- `accepted` — user clicked Accept. Moves into Payment.
+- `cancelled` — user clicked Reject, or admin cancelled.
+- `paid` — payment recorded (manual for now; Stripe deferred).
+- `processing / shipped / in_transit / delivered` — admin advances as fulfilment progresses.
+- `closed` — delivered + feedback window closed (optional).
 
-`quote_requests` already exists. Add a discriminator and Stripe fields:
+## Schema Changes (migration)
 
-- `order_type` text, check in (`'instant'`,`'quotation'`), default `'quotation'`, NOT NULL (backfill existing rows to `'quotation'`).
-- `stripe_session_id` text, `stripe_payment_intent` text, `paid_at` timestamptz, all nullable.
-- Allowed `status` values extended to include `pending_payment`, `paid` for the instant track.
-- Index on `(user_id, order_type)` and `(order_type, status)`.
+Add to `quote_requests`:
 
-No new tables. Instant orders reuse `quote_requests` + `quote_request_items` so the entire existing pipeline (status history, documents, payments, invoices, shipments) works for both tracks.
+- `final_price_usd numeric` — admin's final quoted price
+- `quoted_at timestamptz`
+- `quote_note text` — admin's message to customer with the quote
+- `accepted_at timestamptz`
+- `rejected_at timestamptz`
+- `rejection_reason text`
 
-## Stripe (Lovable built-in payments)
+No new tables needed — `payments`, `order_status_history`, `order_documents`, `product_reviews` already exist.
 
-Enable via `payments--enable_stripe_payments` (seamless, no API keys needed). After enable, create one generic "Cart checkout" product OR use ad-hoc `price_data` line items per session — we will use ad-hoc line items so any cart contents work.
+## Admin Side
 
-Server flow:
+`**/admin/quotations**` (`_authenticated.admin.quotations.tsx`)
 
-1. `createInstantCheckout` server fn (auth-required): inserts `quote_requests` row with `order_type='instant'`, `status='pending_payment'`, inserts items, creates Stripe Checkout Session with `line_items` built from cart, `success_url=/account/orders/{id}?paid=1`, `cancel_url=/cart`, metadata `{ quote_id }`. Returns `{ url }`. Client redirects.
-2. Stripe webhook at `src/routes/api/public/stripe-webhook.ts`: on `checkout.session.completed`, verify signature, look up `quote_id` from metadata, update row to `status='paid'`, set `stripe_payment_intent`, `paid_at`, and insert a `payments` row (`status='paid'`, method='stripe').
+- Row action "Send Quote" opens a drawer: input `final_price_usd`, textarea `quote_note` → sets status to `quoted`, stamps `quoted_at`.
+- Status filter updated to full lifecycle (new, quoted, accepted, cancelled, paid, processing, shipped, in_transit, delivered).
+- Once status ≥ `accepted`, this record also surfaces in `/admin/orders` (currently filtered to `order_type='instant'` only — widen to include `order_type='quotation' AND status IN ('accepted','paid',…)`).
 
-## Cart UI (`src/routes/cart.tsx`)
+`**/admin/orders/$id**`
 
-Replace the single WhatsApp button block with a two-track summary card:
+- Existing shipping/status/document/payment controls apply.
+- Show `final_price_usd` when present; use it as the amount for payment recording.
 
-- Subtotal + threshold note ("Orders under $300 USD qualify for instant checkout").
-- Primary/secondary buttons per the rule above.
-- Instant button calls `createInstantCheckout` then `window.location.href = url`.
-- Quotation button keeps the existing `useWhatsappQuote().sendCartQuote` flow but flag the saved row as `order_type='quotation'`.
+## User Side
 
-## Client portal split (`/account`)
+`**/account/inquiries**` (list — already exists)
 
-- Sidebar entries: rename "Orders" → "Orders" but split the index page into two tabs / two routes:
-  - `/account/orders` — Instant orders (paid + pending payment)
-  - `/account/inquiries` — already exists; show only `order_type='quotation'`
-- `getMyOrders` / `getMyInquiries` server fns filter by `order_type`.
-- Order detail page (`/account/orders/$id`) shows a "Pay now" CTA when `status='pending_payment'` (re-opens Stripe session) and a Stripe-paid badge when `status='paid'`.
-- Dashboard stats split: "Active orders" vs "Open inquiries".
+- Show status badge + final price when `quoted`.
+- Row action: "Review Quote" → detail page.
 
-## Admin panel split (`/admin`)
+`**/account/inquiries/$id**` (new route)
 
-- Sidebar: existing "Quotations" stays (filters `order_type='quotation'`). Add **"Orders"** entry → `/admin/orders` filters `order_type='instant'`.
-- Both reuse the same list/detail components; queries pass `order_type`.
-- Admin order detail shows Stripe payment status read-only; admin cannot mark instant orders as paid manually (Stripe webhook owns that).
-- Quotation detail keeps existing manual payment + status workflow unchanged.
+- Renders items, original total, admin's `final_price_usd`, `quote_note`.
+- When status = `quoted`: two buttons — **Accept Quote** (→ `accepted`, stamps `accepted_at`) and **Reject Quote** (opens reason textarea → `cancelled`, stamps `rejected_at`, saves `rejection_reason`).
+- When status = `accepted`: shows "Proceed to Payment" CTA → `/account/inquiries/$id/pay`.
+- When status ≥ `paid`: redirect / link to `/account/orders/$id` (same underlying row).
 
-## Files to touch
+`**/account/inquiries/$id/pay**` (new route)
 
-New:
+- Payment options screen. Since Stripe is deferred, offer:
+  - **Bank Transfer** — shows bank details + "I have transferred" button; creates a `payments` row with `status='pending'`, `method='bank_transfer'`. Admin confirms in `/admin/orders/$id`, which flips quote status to `paid`.
+  - **Contact for Payment** — WhatsApp deep link to arrange payment.
+- Once quote status becomes `paid`, this route redirects to `/account/orders/$id`.
 
-- `supabase/migrations/<ts>_two_track_orders.sql`
-- `src/lib/checkout.functions.ts` (createInstantCheckout, resumeCheckout)
-- `src/routes/api/public/stripe-webhook.ts`
-- `src/routes/_authenticated.admin.orders.index.tsx` is repurposed; add list filtering by order_type via search params
+`**/account/orders**` — widen filter to include quotation-type rows whose status ≥ `paid`, so paid quotes appear alongside instant orders. Instant orders keep working as-is.
 
-Edited:
+`**/account/orders/$id**`
 
-- `src/routes/cart.tsx` — two-track CTA block
-- `src/lib/quotes.functions.ts` — set `order_type='quotation'`
-- `src/lib/account/orders.functions.ts` — filter by `order_type='instant'`; new `getMyInquiriesList` (or update existing inquiries fn)
-- `src/lib/account/dashboard.functions.ts` — split counters
-- `src/lib/admin/quotations.functions.ts` — filter by `order_type='quotation'`
-- `src/lib/admin/order-detail.functions.ts` — surface Stripe fields
-- `src/components/account/account-sidebar.tsx` and `src/components/admin/admin-sidebar.tsx` — add "Orders" vs "Inquiries"
-- `src/routes/_authenticated.account.orders.$id.tsx` — Pay-now CTA + paid badge
-- `src/routes/_authenticated.admin.orders.$id.tsx` — show Stripe status
-- `src/routes/_authenticated.admin.quotations.tsx` — title/filter clarification
+- Existing status timeline + documents + payments UI already covers the fulfilment updates. No changes needed beyond ensuring quotation orders render (they will, since it selects by id + user).
+- When status = `delivered`, render a **Leave a Review** button per item that opens the existing `product_reviews` flow (verified via `quote_request_items.product_id`).
 
-## Out of scope
+## Server Functions
 
-- Refunds via Stripe (admin can still mark a manual refund note).
-- Saved cards / subscriptions.
-- Tax automation (will be configured after enable as part of Stripe setup step).
-- Changing the $300 threshold per-currency — it stays a USD-based check.
+New functions in `src/lib/`:
+
+- `admin/quotations.functions.ts`
+  - `sendQuote({ id, final_price_usd, quote_note })` — admin-only, sets status `quoted`.
+- `account/quotes.functions.ts` (new file)
+  - `getMyInquiry({ id })` — full detail incl. final price and note.
+  - `acceptQuote({ id })` — user, only when status = `quoted`.
+  - `rejectQuote({ id, reason })` — user, only when status = `quoted`.
+  - `recordPaymentIntent({ id, method })` — creates pending `payments` row.
+- `account/reviews.functions.ts` (new)
+  - `createProductReview({ product_id, quote_id, rating, title, body })` — verifies the user actually purchased+received the product.
+
+## Notifications (light-touch)
+
+Use `toast` in-app on state transitions. No email work in this pass (can be added later).
+
+## Files Touched
+
+- New migration (schema additions)
+- `src/lib/admin/quotations.functions.ts` (add `sendQuote`)
+- `src/lib/account/quotes.functions.ts` (new)
+- `src/lib/account/reviews.functions.ts` (new)
+- `src/lib/account/orders.functions.ts` (widen `getMyOrders` filter)
+- `src/lib/admin/dashboard.functions.ts` (stats include quotation orders once paid)
+- `src/routes/_authenticated.admin.quotations.tsx` (Send Quote drawer, expanded status set)
+- `src/routes/_authenticated.account.inquiries.tsx` (badges + Review link)
+- `src/routes/_authenticated.account.inquiries.$id.tsx` (new — quote review + accept/reject)
+- `src/routes/_authenticated.account.inquiries.$id.pay.tsx` (new — payment options)
+- `src/routes/_authenticated.account.orders.$id.tsx` (leave-review button when delivered)
+- `src/lib/account/status.ts` (no changes; statuses already covered)
+
+## Out of Scope (this pass)
+
+- Real Stripe/card checkout — payment is manual (bank transfer + admin confirms). Can be layered in later without changing this flow.
+- Email/WhatsApp notifications on each transition.
+- Partial payments / deposits.
