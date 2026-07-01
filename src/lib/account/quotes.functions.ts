@@ -90,7 +90,8 @@ export const recordPaymentIntent = createServerFn({ method: "POST" })
     if (!row) throw new Error("Inquiry not found");
     if (row.status !== "accepted") throw new Error("Quote must be accepted before payment");
     const amount = Number(row.final_price_usd ?? row.total_usd);
-    const { error } = await supabase.from("payments").insert({
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("payments").insert({
       quote_id: row.id,
       amount_usd: amount,
       method: data.method,
