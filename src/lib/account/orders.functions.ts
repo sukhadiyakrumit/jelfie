@@ -61,7 +61,7 @@ export const getMyOrder = createServerFn({ method: "GET" })
     const { data: order, error } = await supabase
       .from("quote_requests")
       .select(
-        "id, created_at, currency, total_usd, status, order_type, tracking_number, carrier, estimated_delivery, note, whatsapp_url, paid_at, quote_request_items(id, product_id, name, slug, price_usd, quantity, image_url)",
+        "id, created_at, currency, total_usd, final_price_usd, status, order_type, tracking_number, carrier, estimated_delivery, note, whatsapp_url, paid_at, quote_note, quote_request_items(id, product_id, name, slug, price_usd, quantity, image_url)",
       )
       .eq("id", data.id)
       .eq("user_id", userId)
