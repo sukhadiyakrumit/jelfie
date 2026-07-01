@@ -28,6 +28,19 @@ export const submitProductReview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => reviewSchema.parse(d))
   .handler(async ({ data, context }) => {
+    // Verify the user has actually received this product (delivered order).
+    const { data: eligibleItems, error: eErr } = await context.supabase
+      .from("quote_request_items")
+      .select("id, quote_id, quote_requests!inner(user_id, status)")
+      .eq("product_id", data.product_id)
+      .eq("quote_requests.user_id", context.userId)
+      .eq("quote_requests.status", "delivered")
+      .limit(1);
+    if (eErr) throw new Error(eErr.message);
+    if (!eligibleItems || eligibleItems.length === 0) {
+      throw new Error("You can only review products from delivered orders.");
+    }
+
     const { error } = await context.supabase
       .from("product_reviews")
       .upsert(
