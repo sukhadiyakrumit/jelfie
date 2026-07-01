@@ -195,7 +195,7 @@ function OrderDetailPage() {
         </ul>
         <div className="px-6 py-4 border-t border-onyx/10 flex justify-between text-sm font-medium">
           <span>Total</span>
-          <span>${Number(order.total_usd).toLocaleString()}</span>
+          <span>${Number(order.final_price_usd ?? order.total_usd).toLocaleString()}</span>
         </div>
       </section>
 
