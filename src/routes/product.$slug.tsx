@@ -183,7 +183,7 @@ function ProductPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 pb-16">
+      <div id="reviews" className="max-w-7xl mx-auto px-6 pb-16 scroll-mt-24">
         <ProductReviews productId={product.id} />
       </div>
 
