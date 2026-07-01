@@ -490,15 +490,21 @@ export type Database = {
       }
       quote_requests: {
         Row: {
+          accepted_at: string | null
           carrier: string | null
           created_at: string
           currency: string
           estimated_delivery: string | null
+          final_price_usd: number | null
           id: string
           internal_note: string | null
           note: string | null
           order_type: string
           paid_at: string | null
+          quote_note: string | null
+          quoted_at: string | null
+          rejected_at: string | null
+          rejection_reason: string | null
           status: string
           stripe_payment_intent: string | null
           stripe_session_id: string | null
@@ -508,15 +514,21 @@ export type Database = {
           whatsapp_url: string
         }
         Insert: {
+          accepted_at?: string | null
           carrier?: string | null
           created_at?: string
           currency?: string
           estimated_delivery?: string | null
+          final_price_usd?: number | null
           id?: string
           internal_note?: string | null
           note?: string | null
           order_type?: string
           paid_at?: string | null
+          quote_note?: string | null
+          quoted_at?: string | null
+          rejected_at?: string | null
+          rejection_reason?: string | null
           status?: string
           stripe_payment_intent?: string | null
           stripe_session_id?: string | null
@@ -526,15 +538,21 @@ export type Database = {
           whatsapp_url: string
         }
         Update: {
+          accepted_at?: string | null
           carrier?: string | null
           created_at?: string
           currency?: string
           estimated_delivery?: string | null
+          final_price_usd?: number | null
           id?: string
           internal_note?: string | null
           note?: string | null
           order_type?: string
           paid_at?: string | null
+          quote_note?: string | null
+          quoted_at?: string | null
+          rejected_at?: string | null
+          rejection_reason?: string | null
           status?: string
           stripe_payment_intent?: string | null
           stripe_session_id?: string | null
