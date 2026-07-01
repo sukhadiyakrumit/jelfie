@@ -99,5 +99,10 @@ export const recordPaymentIntent = createServerFn({ method: "POST" })
       status: "pending",
     });
     if (error) throw new Error(error.message);
+    // Move quote into the fulfilment pipeline so it appears in the customer's Orders section
+    await supabaseAdmin
+      .from("quote_requests")
+      .update({ status: "pending_payment" })
+      .eq("id", row.id);
     return { ok: true };
   });
