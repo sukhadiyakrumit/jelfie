@@ -4,6 +4,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const ACTIVE_SHIPMENT = ["processing", "shipped", "in_transit"];
 
+const ORDER_STATUSES = ["pending_payment", "paid", "processing", "shipped", "in_transit", "delivered", "closed"];
+
 export const getMyOrders = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -11,10 +13,10 @@ export const getMyOrders = createServerFn({ method: "GET" })
     const { data, error } = await supabase
       .from("quote_requests")
       .select(
-        "id, created_at, currency, total_usd, status, order_type, tracking_number, carrier, estimated_delivery, whatsapp_url, quote_request_items(id, name, slug, price_usd, quantity, image_url)",
+        "id, created_at, currency, total_usd, final_price_usd, status, order_type, tracking_number, carrier, estimated_delivery, whatsapp_url, quote_request_items(id, name, slug, price_usd, quantity, image_url)",
       )
       .eq("user_id", userId)
-      .eq("order_type", "instant")
+      .or(`order_type.eq.instant,and(order_type.eq.quotation,status.in.(${ORDER_STATUSES.join(",")}))`)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
