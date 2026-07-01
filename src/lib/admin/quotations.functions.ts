@@ -12,7 +12,7 @@ export const listAllQuotations = createServerFn({ method: "GET" })
     let query = supabaseAdmin
       .from("quote_requests")
       .select(
-        "id, created_at, user_id, currency, total_usd, status, order_type, whatsapp_url, note, internal_note, paid_at, quote_request_items(id, name, slug, price_usd, quantity, image_url)",
+        "id, created_at, user_id, currency, total_usd, status, order_type, whatsapp_url, note, internal_note, paid_at, final_price_usd, quoted_at, quote_note, accepted_at, rejected_at, rejection_reason, quote_request_items(id, name, slug, price_usd, quantity, image_url)",
       )
       .order("created_at", { ascending: false });
     if (data?.orderType) query = query.eq("order_type", data.orderType);
@@ -52,6 +52,32 @@ export const updateQuotation = createServerFn({ method: "POST" })
     }
     if (internal_note !== undefined) patch.internal_note = internal_note;
     const { error } = await supabaseAdmin.from("quote_requests").update(patch).eq("id", id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const sendQuote = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        final_price_usd: z.number().nonnegative(),
+        quote_note: z.string().trim().max(2000).optional().nullable(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("quote_requests")
+      .update({
+        status: "quoted",
+        final_price_usd: data.final_price_usd,
+        quote_note: data.quote_note ?? null,
+        quoted_at: new Date().toISOString(),
+      })
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

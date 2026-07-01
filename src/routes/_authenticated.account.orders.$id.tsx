@@ -178,6 +178,16 @@ function OrderDetailPage() {
                   {i.name}
                 </Link>
                 <p className="text-[11px] text-onyx/50">Qty {i.quantity} · ${Number(i.price_usd).toFixed(2)}</p>
+                {order.status === "delivered" && i.product_id && (
+                  <Link
+                    to="/product/$slug"
+                    params={{ slug: i.slug }}
+                    hash="reviews"
+                    className="inline-block mt-1 text-[10px] uppercase tracking-widest text-gold hover:text-onyx"
+                  >
+                    ★ Leave a review
+                  </Link>
+                )}
               </div>
               <p className="text-sm font-medium">${(Number(i.price_usd) * i.quantity).toFixed(2)}</p>
             </li>
@@ -185,7 +195,7 @@ function OrderDetailPage() {
         </ul>
         <div className="px-6 py-4 border-t border-onyx/10 flex justify-between text-sm font-medium">
           <span>Total</span>
-          <span>${Number(order.total_usd).toLocaleString()}</span>
+          <span>${Number(order.final_price_usd ?? order.total_usd).toLocaleString()}</span>
         </div>
       </section>
 

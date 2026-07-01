@@ -4,22 +4,42 @@ import { useServerFn } from "@tanstack/react-start";
 import { Fragment, useState } from "react";
 import { toast } from "sonner";
 import { ExternalLink } from "lucide-react";
-import { listAllQuotations, updateQuotation } from "@/lib/admin/quotations.functions";
+import { listAllQuotations, updateQuotation, sendQuote } from "@/lib/admin/quotations.functions";
+import { STATUS_LABEL, statusBadgeClass } from "@/lib/account/status";
 
 export const Route = createFileRoute("/_authenticated/admin/quotations")({
   component: QuotationsPage,
 });
 
-const STATUSES = ["new", "contacted", "closed", "cancelled", "paid"] as const;
+const STATUSES = [
+  "new",
+  "contacted",
+  "quoted",
+  "accepted",
+  "paid",
+  "processing",
+  "shipped",
+  "in_transit",
+  "delivered",
+  "closed",
+  "cancelled",
+] as const;
 
 function QuotationsPage() {
   const fetchList = useServerFn(listAllQuotations);
   const doUpdate = useServerFn(updateQuotation);
+  const doSendQuote = useServerFn(sendQuote);
   const qc = useQueryClient();
   const [filter, setFilter] = useState<string>("all");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [quoteFor, setQuoteFor] = useState<any | null>(null);
+  const [quotePrice, setQuotePrice] = useState("");
+  const [quoteNote, setQuoteNote] = useState("");
 
-  const q = useQuery({ queryKey: ["admin-quotations"], queryFn: () => fetchList({ data: { orderType: "quotation" } }) });
+  const q = useQuery({
+    queryKey: ["admin-quotations"],
+    queryFn: () => fetchList({ data: { orderType: "quotation" } }),
+  });
 
   const m = useMutation({
     mutationFn: (input: { id: string; status?: string; internal_note?: string | null }) =>
@@ -32,7 +52,26 @@ function QuotationsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const sendQuoteMut = useMutation({
+    mutationFn: (input: { id: string; final_price_usd: number; quote_note: string | null }) =>
+      doSendQuote({ data: input }),
+    onSuccess: () => {
+      toast.success("Quote sent to customer");
+      setQuoteFor(null);
+      setQuotePrice("");
+      setQuoteNote("");
+      qc.invalidateQueries({ queryKey: ["admin-quotations"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const rows = (q.data ?? []).filter((r: any) => filter === "all" || r.status === filter);
+
+  function openQuoteDrawer(r: any) {
+    setQuoteFor(r);
+    setQuotePrice(r.final_price_usd ? String(r.final_price_usd) : String(r.total_usd ?? ""));
+    setQuoteNote(r.quote_note ?? "");
+  }
 
   return (
     <div className="px-10 py-10">
@@ -49,7 +88,7 @@ function QuotationsPage() {
           <option value="all">All statuses</option>
           {STATUSES.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {STATUS_LABEL[s] ?? s}
             </option>
           ))}
         </select>
@@ -62,7 +101,7 @@ function QuotationsPage() {
               <th className="p-4">Date</th>
               <th className="p-4">Customer</th>
               <th className="p-4">Items</th>
-              <th className="p-4 text-right">Total</th>
+              <th className="p-4 text-right">Cart / Quoted</th>
               <th className="p-4">Status</th>
               <th className="p-4"></th>
             </tr>
@@ -77,25 +116,34 @@ function QuotationsPage() {
                     <div className="text-xs text-onyx/50">{r.customer?.phone ?? ""}</div>
                   </td>
                   <td className="p-4">{r.quote_request_items?.length ?? 0}</td>
-                  <td className="p-4 text-right">${Number(r.total_usd).toLocaleString()}</td>
+                  <td className="p-4 text-right">
+                    <div>${Number(r.total_usd).toLocaleString()}</div>
+                    {r.final_price_usd != null && (
+                      <div className="text-[11px] text-gold">
+                        Quoted ${Number(r.final_price_usd).toLocaleString()}
+                      </div>
+                    )}
+                  </td>
                   <td className="p-4">
-                    <select
-                      value={r.status}
-                      onChange={(e) => m.mutate({ id: r.id, status: e.target.value })}
-                      className="border border-onyx/20 px-2 py-1 text-xs bg-white capitalize"
-                    >
-                      {STATUSES.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
+                    <span className={`text-[10px] uppercase tracking-widest px-2 py-0.5 ${statusBadgeClass(r.status)}`}>
+                      {STATUS_LABEL[r.status] ?? r.status}
+                    </span>
                   </td>
                   <td className="p-4 text-right">
                     <div className="flex gap-3 justify-end items-center">
-                      <a href={r.whatsapp_url} target="_blank" rel="noreferrer" className="text-gold" title="Open WhatsApp">
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
+                      {(r.status === "new" || r.status === "contacted" || r.status === "quoted") && (
+                        <button
+                          onClick={() => openQuoteDrawer(r)}
+                          className="text-[11px] uppercase tracking-widest text-gold hover:text-onyx"
+                        >
+                          {r.status === "quoted" ? "Revise Quote" : "Send Quote"}
+                        </button>
+                      )}
+                      {r.whatsapp_url && (
+                        <a href={r.whatsapp_url} target="_blank" rel="noreferrer" className="text-gold" title="Open WhatsApp">
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      )}
                       <button
                         onClick={() => setOpenId(openId === r.id ? null : r.id)}
                         className="text-[11px] uppercase tracking-widest text-onyx/70 hover:text-gold"
@@ -119,6 +167,39 @@ function QuotationsPage() {
                           </li>
                         ))}
                       </ul>
+
+                      {r.quote_note && (
+                        <div className="mb-4 text-sm">
+                          <div className="text-[10px] uppercase tracking-widest text-onyx/50 mb-1">
+                            Quote note to customer
+                          </div>
+                          <p className="whitespace-pre-wrap">{r.quote_note}</p>
+                        </div>
+                      )}
+                      {r.rejection_reason && (
+                        <div className="mb-4 text-sm">
+                          <div className="text-[10px] uppercase tracking-widest text-red-600 mb-1">
+                            Customer rejection reason
+                          </div>
+                          <p className="whitespace-pre-wrap">{r.rejection_reason}</p>
+                        </div>
+                      )}
+
+                      <label className="block mb-4">
+                        <span className="text-[10px] uppercase tracking-widest text-onyx/50">Update status</span>
+                        <select
+                          value={r.status}
+                          onChange={(e) => m.mutate({ id: r.id, status: e.target.value })}
+                          className="mt-1 border border-onyx/20 px-2 py-1 text-xs bg-white capitalize"
+                        >
+                          {STATUSES.map((s) => (
+                            <option key={s} value={s}>
+                              {STATUS_LABEL[s] ?? s}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
                       <label className="block">
                         <span className="text-[10px] uppercase tracking-widest text-onyx/50">Internal note</span>
                         <textarea
@@ -146,6 +227,69 @@ function QuotationsPage() {
           </tbody>
         </table>
       </div>
+
+      {quoteFor && (
+        <div
+          className="fixed inset-0 bg-onyx/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setQuoteFor(null)}
+        >
+          <div
+            className="bg-white max-w-lg w-full p-8 border border-onyx/10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-serif text-2xl italic mb-1">Send Final Quote</h2>
+            <p className="text-xs text-onyx/60 mb-6">
+              Customer: {quoteFor.customer?.full_name ?? "—"} · Cart total ${Number(quoteFor.total_usd).toLocaleString()}
+            </p>
+
+            <label className="block mb-4">
+              <span className="text-[10px] uppercase tracking-widest text-onyx/50">Final Price (USD)</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={quotePrice}
+                onChange={(e) => setQuotePrice(e.target.value)}
+                className="w-full border border-onyx/20 px-3 py-2 mt-1"
+                autoFocus
+              />
+            </label>
+
+            <label className="block mb-6">
+              <span className="text-[10px] uppercase tracking-widest text-onyx/50">Note to customer</span>
+              <textarea
+                value={quoteNote}
+                onChange={(e) => setQuoteNote(e.target.value)}
+                rows={4}
+                placeholder="Terms, delivery timeframe, inclusions…"
+                className="w-full border border-onyx/20 px-3 py-2 mt-1 text-sm"
+              />
+            </label>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setQuoteFor(null)}
+                className="px-5 py-2 border border-onyx/20 text-[11px] uppercase tracking-widest hover:border-onyx"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={sendQuoteMut.isPending || !quotePrice || Number(quotePrice) < 0}
+                onClick={() =>
+                  sendQuoteMut.mutate({
+                    id: quoteFor.id,
+                    final_price_usd: Number(quotePrice),
+                    quote_note: quoteNote.trim() ? quoteNote.trim() : null,
+                  })
+                }
+                className="px-5 py-2 bg-onyx text-ivory text-[11px] uppercase tracking-widest hover:bg-gold disabled:opacity-50"
+              >
+                {sendQuoteMut.isPending ? "Sending…" : "Send Quote"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
