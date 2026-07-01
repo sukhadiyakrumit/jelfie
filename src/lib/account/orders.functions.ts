@@ -42,9 +42,12 @@ export const getMyInquiries = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("quote_requests")
-      .select("id, created_at, status, total_usd, order_type, note, quote_request_items(id, name, quantity)")
+      .select(
+        "id, created_at, status, total_usd, final_price_usd, quoted_at, order_type, note, quote_request_items(id, name, quantity)",
+      )
       .eq("user_id", userId)
       .eq("order_type", "quotation")
+      .in("status", ["new", "contacted", "quoted", "accepted", "cancelled"])
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
