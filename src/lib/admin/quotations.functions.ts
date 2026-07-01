@@ -12,7 +12,7 @@ export const listAllQuotations = createServerFn({ method: "GET" })
     let query = supabaseAdmin
       .from("quote_requests")
       .select(
-        "id, created_at, user_id, currency, total_usd, status, order_type, whatsapp_url, note, internal_note, paid_at, quote_request_items(id, name, slug, price_usd, quantity, image_url)",
+        "id, created_at, user_id, currency, total_usd, status, order_type, whatsapp_url, note, internal_note, paid_at, final_price_usd, quoted_at, quote_note, accepted_at, rejected_at, rejection_reason, quote_request_items(id, name, slug, price_usd, quantity, image_url)",
       )
       .order("created_at", { ascending: false });
     if (data?.orderType) query = query.eq("order_type", data.orderType);
