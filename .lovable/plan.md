@@ -1,51 +1,27 @@
-## Problem
+## Goal
+Make the Inquiries → Review Quote → Payment flow reliable and self-contained on the inquiry detail page.
 
-Both **Instant Checkout** and **Request a Quote** fail with:
+## Problems observed
+1. On `/account/inquiries`, both "Review Quote" and "Details" buttons point to the same route (`/account/inquiries/$id`), which is confusing and looks broken (two buttons, same result).
+2. After accepting a quote, the customer is auto-navigated away to a separate `/pay` screen. If the redirect misfires (or the query cache is stale), the "Pay Now" affordance appears to "not work".
+3. There is no single, obvious pay CTA on the Review Quote screen itself after acceptance.
 
-> `new row violates row-level security policy for table "order_status_history"`
+## Changes
 
-### Root cause
+### `src/routes/_authenticated.account.inquiries.tsx` (list)
+- Remove the duplicate "Details" button when status is `quoted` (Review Quote already opens details). Keep "Details" only for non-actionable statuses (new, contacted, cancelled).
+- Keep "Pay Now" shortcut for `accepted` rows.
 
-Every insert / status change on `quote_requests` fires the trigger `log_quote_status_change`, which inserts a row into `public.order_status_history`. The trigger runs as the *calling* user (not `SECURITY DEFINER`), and `order_status_history` only has two policies:
+### `src/routes/_authenticated.account.inquiries.$id.tsx` (Review Quote / detail)
+- After `Accept & Pay` succeeds, DO NOT auto-navigate. Instead:
+  - Invalidate the inquiry query so the page re-renders with `status = accepted`.
+  - Show a prominent inline "Pay Now" panel with payment method selector + Confirm button (inlined the mini form from the `/pay` page: Bank Transfer / WhatsApp + optional reference).
+  - Keep a secondary link to the full `/pay` page for users who prefer it.
+- Show a clear success state after the payment intent is recorded (status becomes `pending_payment`): green confirmation block + link to `/account/orders/$id`.
+- Ensure the Accept button is disabled and shows a spinner state while pending, and surfaces error toasts (already partially wired).
 
-- Admins can do everything (`INSERT`/`UPDATE`/`DELETE`/`SELECT`)
-- Owners can `SELECT` their own history
+### `src/routes/_authenticated.account.inquiries.$id.pay.tsx`
+- Keep as-is (still accessible via the shortcut from the list or the secondary link on detail).
 
-There is **no INSERT policy for regular users**, so as soon as a signed-in customer creates an instant order or a quote request, the trigger insert is blocked by RLS and the whole transaction is rolled back — which is why the checkout button and the WhatsApp quote button both appear to "do nothing" (they toast the RLS error and never open WhatsApp / never place the order).
-
-## Fix
-
-Migration that flips the trigger function to `SECURITY DEFINER` (with a locked `search_path`) so the audit insert bypasses RLS on `order_status_history` while user-facing reads stay restricted by the existing "users view own status history" policy.
-
-```sql
-CREATE OR REPLACE FUNCTION public.log_quote_status_change()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  IF TG_OP = 'INSERT' THEN
-    INSERT INTO public.order_status_history (quote_id, status, created_by)
-    VALUES (NEW.id, NEW.status, NEW.user_id);
-  ELSIF TG_OP = 'UPDATE' AND NEW.status IS DISTINCT FROM OLD.status THEN
-    INSERT INTO public.order_status_history (quote_id, status, created_by)
-    VALUES (NEW.id, NEW.status, COALESCE(auth.uid(), NEW.user_id));
-  END IF;
-  RETURN NEW;
-END $$;
-```
-
-## Scope
-
-- Single migration on the trigger function only. No table/policy/code changes required.
-- The other reported symptoms (buttons doing nothing, WhatsApp not opening) are downstream effects of this same RLS failure and will resolve with this fix. Redirect-after-login already preserves the cart (cart lives in `localStorage`, sign-in respects the `?redirect=/cart` param).
-- WhatsApp number and message templates are correct; no change needed.
-
-## Verification
-
-After migration:
-
-1. Signed-in user with cart total < $1000 → **Place Order (Instant)** → order lands in `quote_requests` with `order_type='instant'`, `status='pending_payment'`, and a history row is created.
-2. Signed-in user → **Request a Quote** → quote is saved and WhatsApp opens with the prefilled message.
-3. Admin status changes on quotes/orders continue to log history correctly.
+## No backend changes
+The existing `acceptQuote` and `recordPaymentIntent` server functions already do the right thing — this is purely a UX fix on the client so the buttons behave consistently and payment can be completed on the Review Quote screen itself.

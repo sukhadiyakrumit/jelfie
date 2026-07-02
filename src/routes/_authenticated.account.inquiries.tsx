@@ -70,13 +70,15 @@ function InquiriesPage() {
                         Pay Now
                       </Link>
                     )}
-                    <Link
-                      to="/account/inquiries/$id"
-                      params={{ id: o.id }}
-                      className="px-4 py-2 border border-onyx/20 text-[11px] uppercase tracking-widest hover:border-onyx"
-                    >
-                      Details
-                    </Link>
+                    {!showReview && (
+                      <Link
+                        to="/account/inquiries/$id"
+                        params={{ id: o.id }}
+                        className="px-4 py-2 border border-onyx/20 text-[11px] uppercase tracking-widest hover:border-onyx"
+                      >
+                        Details
+                      </Link>
+                    )}
                   </div>
                 </div>
               </li>
