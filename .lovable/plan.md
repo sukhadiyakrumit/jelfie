@@ -1,112 +1,51 @@
-# Quotation → Contract → Payment → Order → Feedback Flow
+## Problem
 
-Extend the existing "Request Quotation" path (orders ≥ $1000) into a complete lifecycle. Instant checkout (< $1000) stays untouched.
+Both **Instant Checkout** and **Request a Quote** fail with:
 
-## Status Lifecycle (quotation orders)
+> `new row violates row-level security policy for table "order_status_history"`
 
-```text
-new  →  quoted  →  accepted  →  paid  →  processing  →  shipped  →  in_transit  →  delivered  →  closed
-              ↘  cancelled (user rejects)
-              ↘  cancelled (admin cancels)
+### Root cause
+
+Every insert / status change on `quote_requests` fires the trigger `log_quote_status_change`, which inserts a row into `public.order_status_history`. The trigger runs as the *calling* user (not `SECURITY DEFINER`), and `order_status_history` only has two policies:
+
+- Admins can do everything (`INSERT`/`UPDATE`/`DELETE`/`SELECT`)
+- Owners can `SELECT` their own history
+
+There is **no INSERT policy for regular users**, so as soon as a signed-in customer creates an instant order or a quote request, the trigger insert is blocked by RLS and the whole transaction is rolled back — which is why the checkout button and the WhatsApp quote button both appear to "do nothing" (they toast the RLS error and never open WhatsApp / never place the order).
+
+## Fix
+
+Migration that flips the trigger function to `SECURITY DEFINER` (with a locked `search_path`) so the audit insert bypasses RLS on `order_status_history` while user-facing reads stay restricted by the existing "users view own status history" policy.
+
+```sql
+CREATE OR REPLACE FUNCTION public.log_quote_status_change()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    INSERT INTO public.order_status_history (quote_id, status, created_by)
+    VALUES (NEW.id, NEW.status, NEW.user_id);
+  ELSIF TG_OP = 'UPDATE' AND NEW.status IS DISTINCT FROM OLD.status THEN
+    INSERT INTO public.order_status_history (quote_id, status, created_by)
+    VALUES (NEW.id, NEW.status, COALESCE(auth.uid(), NEW.user_id));
+  END IF;
+  RETURN NEW;
+END $$;
 ```
 
-- `new` — user submitted request. Admin sees it in Quotations.
-- `quoted` — admin entered `final_price_usd` and (optional) note. User is notified in Account.
-- `accepted` — user clicked Accept. Moves into Payment.
-- `cancelled` — user clicked Reject, or admin cancelled.
-- `paid` — payment recorded (manual for now; Stripe deferred).
-- `processing / shipped / in_transit / delivered` — admin advances as fulfilment progresses.
-- `closed` — delivered + feedback window closed (optional).
+## Scope
 
-## Schema Changes (migration)
+- Single migration on the trigger function only. No table/policy/code changes required.
+- The other reported symptoms (buttons doing nothing, WhatsApp not opening) are downstream effects of this same RLS failure and will resolve with this fix. Redirect-after-login already preserves the cart (cart lives in `localStorage`, sign-in respects the `?redirect=/cart` param).
+- WhatsApp number and message templates are correct; no change needed.
 
-Add to `quote_requests`:
+## Verification
 
-- `final_price_usd numeric` — admin's final quoted price
-- `quoted_at timestamptz`
-- `quote_note text` — admin's message to customer with the quote
-- `accepted_at timestamptz`
-- `rejected_at timestamptz`
-- `rejection_reason text`
+After migration:
 
-No new tables needed — `payments`, `order_status_history`, `order_documents`, `product_reviews` already exist.
-
-## Admin Side
-
-`**/admin/quotations**` (`_authenticated.admin.quotations.tsx`)
-
-- Row action "Send Quote" opens a drawer: input `final_price_usd`, textarea `quote_note` → sets status to `quoted`, stamps `quoted_at`.
-- Status filter updated to full lifecycle (new, quoted, accepted, cancelled, paid, processing, shipped, in_transit, delivered).
-- Once status ≥ `accepted`, this record also surfaces in `/admin/orders` (currently filtered to `order_type='instant'` only — widen to include `order_type='quotation' AND status IN ('accepted','paid',…)`).
-
-`**/admin/orders/$id**`
-
-- Existing shipping/status/document/payment controls apply.
-- Show `final_price_usd` when present; use it as the amount for payment recording.
-
-## User Side
-
-`**/account/inquiries**` (list — already exists)
-
-- Show status badge + final price when `quoted`.
-- Row action: "Review Quote" → detail page.
-
-`**/account/inquiries/$id**` (new route)
-
-- Renders items, original total, admin's `final_price_usd`, `quote_note`.
-- When status = `quoted`: two buttons — **Accept Quote** (→ `accepted`, stamps `accepted_at`) and **Reject Quote** (opens reason textarea → `cancelled`, stamps `rejected_at`, saves `rejection_reason`).
-- When status = `accepted`: shows "Proceed to Payment" CTA → `/account/inquiries/$id/pay`.
-- When status ≥ `paid`: redirect / link to `/account/orders/$id` (same underlying row).
-
-`**/account/inquiries/$id/pay**` (new route)
-
-- Payment options screen. Since Stripe is deferred, offer:
-  - **Bank Transfer** — shows bank details + "I have transferred" button; creates a `payments` row with `status='pending'`, `method='bank_transfer'`. Admin confirms in `/admin/orders/$id`, which flips quote status to `paid`.
-  - **Contact for Payment** — WhatsApp deep link to arrange payment.
-- Once quote status becomes `paid`, this route redirects to `/account/orders/$id`.
-
-`**/account/orders**` — widen filter to include quotation-type rows whose status ≥ `paid`, so paid quotes appear alongside instant orders. Instant orders keep working as-is.
-
-`**/account/orders/$id**`
-
-- Existing status timeline + documents + payments UI already covers the fulfilment updates. No changes needed beyond ensuring quotation orders render (they will, since it selects by id + user).
-- When status = `delivered`, render a **Leave a Review** button per item that opens the existing `product_reviews` flow (verified via `quote_request_items.product_id`).
-
-## Server Functions
-
-New functions in `src/lib/`:
-
-- `admin/quotations.functions.ts`
-  - `sendQuote({ id, final_price_usd, quote_note })` — admin-only, sets status `quoted`.
-- `account/quotes.functions.ts` (new file)
-  - `getMyInquiry({ id })` — full detail incl. final price and note.
-  - `acceptQuote({ id })` — user, only when status = `quoted`.
-  - `rejectQuote({ id, reason })` — user, only when status = `quoted`.
-  - `recordPaymentIntent({ id, method })` — creates pending `payments` row.
-- `account/reviews.functions.ts` (new)
-  - `createProductReview({ product_id, quote_id, rating, title, body })` — verifies the user actually purchased+received the product.
-
-## Notifications (light-touch)
-
-Use `toast` in-app on state transitions. No email work in this pass (can be added later).
-
-## Files Touched
-
-- New migration (schema additions)
-- `src/lib/admin/quotations.functions.ts` (add `sendQuote`)
-- `src/lib/account/quotes.functions.ts` (new)
-- `src/lib/account/reviews.functions.ts` (new)
-- `src/lib/account/orders.functions.ts` (widen `getMyOrders` filter)
-- `src/lib/admin/dashboard.functions.ts` (stats include quotation orders once paid)
-- `src/routes/_authenticated.admin.quotations.tsx` (Send Quote drawer, expanded status set)
-- `src/routes/_authenticated.account.inquiries.tsx` (badges + Review link)
-- `src/routes/_authenticated.account.inquiries.$id.tsx` (new — quote review + accept/reject)
-- `src/routes/_authenticated.account.inquiries.$id.pay.tsx` (new — payment options)
-- `src/routes/_authenticated.account.orders.$id.tsx` (leave-review button when delivered)
-- `src/lib/account/status.ts` (no changes; statuses already covered)
-
-## Out of Scope (this pass)
-
-- Real Stripe/card checkout — payment is manual (bank transfer + admin confirms). Can be layered in later without changing this flow.
-- Email/WhatsApp notifications on each transition.
-- Partial payments / deposits.
+1. Signed-in user with cart total < $1000 → **Place Order (Instant)** → order lands in `quote_requests` with `order_type='instant'`, `status='pending_payment'`, and a history row is created.
+2. Signed-in user → **Request a Quote** → quote is saved and WhatsApp opens with the prefilled message.
+3. Admin status changes on quotes/orders continue to log history correctly.
