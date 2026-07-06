@@ -7,7 +7,6 @@ import {
   getMyInquiry,
   acceptQuote,
   rejectQuote,
-  recordPaymentIntent,
 } from "@/lib/account/quotes.functions";
 import { statusBadgeClass, STATUS_LABEL } from "@/lib/account/status";
 
@@ -21,11 +20,8 @@ function InquiryDetailPage() {
   const fetchOne = useServerFn(getMyInquiry);
   const doAccept = useServerFn(acceptQuote);
   const doReject = useServerFn(rejectQuote);
-  const doPay = useServerFn(recordPaymentIntent);
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
-  const [method, setMethod] = useState<"bank_transfer" | "whatsapp">("bank_transfer");
-  const [reference, setReference] = useState("");
 
   const q = useQuery({ queryKey: ["inquiry", id], queryFn: () => fetchOne({ data: { id } }) });
 
@@ -38,7 +34,7 @@ function InquiryDetailPage() {
   const accept = useMutation({
     mutationFn: () => doAccept({ data: { id } }),
     onSuccess: () => {
-      toast.success("Quote accepted. Please complete payment below.");
+      toast.success("Quote accepted. Proceed to payment.");
       invalidate();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -54,21 +50,11 @@ function InquiryDetailPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const pay = useMutation({
-    mutationFn: () =>
-      doPay({ data: { id, method, reference: reference.trim() || undefined } }),
-    onSuccess: () => {
-      toast.success("Payment recorded. We'll confirm shortly.");
-      invalidate();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
   if (q.isLoading || !q.data) return <div className="p-10 text-onyx/50">Loading…</div>;
   const o = q.data as any;
   const canRespond = o.status === "quoted";
   const canPay = o.status === "accepted";
-  const paymentSubmitted = ["pending_payment", "paid", "processing", "shipped", "in_transit", "delivered"].includes(o.status);
+  const paymentDone = ["paid", "processing", "shipped", "in_transit", "delivered"].includes(o.status);
   const amount = Number(o.final_price_usd ?? o.total_usd);
 
   return (
@@ -178,80 +164,25 @@ function InquiryDetailPage() {
       {canPay && (
         <section className="border-2 border-gold bg-white p-6 mb-6">
           <p className="text-[10px] uppercase tracking-widest text-gold mb-1">Complete payment</p>
-          <p className="font-serif text-2xl italic mb-1">
+          <p className="font-serif text-2xl italic mb-4">
             Amount due ${amount.toLocaleString()}{" "}
             <span className="text-sm text-onyx/60">{o.currency}</span>
           </p>
-          <p className="text-onyx/60 text-sm mb-6">
-            Choose a payment method to move this order into fulfilment.
-          </p>
-
-          <div className="space-y-3">
-            <label className={`block border p-4 cursor-pointer ${method === "bank_transfer" ? "border-gold bg-gold/5" : "border-onyx/15"}`}>
-              <div className="flex items-center gap-3">
-                <input
-                  type="radio"
-                  name="method"
-                  checked={method === "bank_transfer"}
-                  onChange={() => setMethod("bank_transfer")}
-                />
-                <div>
-                  <p className="font-medium">Bank Transfer (Wire / SWIFT)</p>
-                  <p className="text-xs text-onyx/60">
-                    Our team will send wire instructions. Enter your transfer reference below when available.
-                  </p>
-                </div>
-              </div>
-            </label>
-
-            <label className={`block border p-4 cursor-pointer ${method === "whatsapp" ? "border-gold bg-gold/5" : "border-onyx/15"}`}>
-              <div className="flex items-center gap-3">
-                <input
-                  type="radio"
-                  name="method"
-                  checked={method === "whatsapp"}
-                  onChange={() => setMethod("whatsapp")}
-                />
-                <div>
-                  <p className="font-medium">Coordinate via WhatsApp</p>
-                  <p className="text-xs text-onyx/60">
-                    Our team will contact you to arrange payment.
-                  </p>
-                </div>
-              </div>
-            </label>
-          </div>
-
-          {method === "bank_transfer" && (
-            <label className="block mt-4">
-              <span className="text-[10px] uppercase tracking-widest text-onyx/50">Transfer reference (optional)</span>
-              <input
-                value={reference}
-                onChange={(e) => setReference(e.target.value)}
-                placeholder="e.g. wire receipt number"
-                className="w-full border border-onyx/20 px-3 py-2 mt-1"
-              />
-            </label>
-          )}
-
-          <button
-            onClick={() => pay.mutate()}
-            disabled={pay.isPending}
-            className="mt-6 w-full py-4 bg-onyx text-ivory text-[11px] uppercase tracking-widest hover:bg-gold disabled:opacity-50"
+          <Link
+            to="/checkout/pay/$id"
+            params={{ id }}
+            className="inline-block px-6 py-3 bg-onyx text-ivory text-[11px] uppercase tracking-widest hover:bg-gold"
           >
-            {pay.isPending ? "Submitting…" : `Confirm Payment · $${amount.toLocaleString()}`}
-          </button>
-          <p className="text-[11px] text-onyx/50 mt-3 text-center">
-            Your payment will be marked pending until our team verifies receipt.
-          </p>
+            Pay Now
+          </Link>
         </section>
       )}
 
-      {paymentSubmitted && (
+      {paymentDone && (
         <div className="border border-green-200 bg-green-50 p-6 text-sm">
-          <p className="text-[10px] uppercase tracking-widest text-green-700 mb-1">Payment submitted</p>
+          <p className="text-[10px] uppercase tracking-widest text-green-700 mb-1">Payment received</p>
           <p className="mb-3">
-            Thanks — your order is now in our fulfilment pipeline. Track progress in your Orders.
+            Your order is now in our fulfilment pipeline. Track progress in your Orders.
           </p>
           <Link
             to="/account/orders/$id"

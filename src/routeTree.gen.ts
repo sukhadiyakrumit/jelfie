@@ -38,6 +38,7 @@ import { Route as AuthenticatedAccountInquiriesRouteImport } from './routes/_aut
 import { Route as AuthenticatedAccountDocumentsRouteImport } from './routes/_authenticated.account.documents'
 import { Route as AuthenticatedAdminProductsIndexRouteImport } from './routes/_authenticated.admin.products.index'
 import { Route as AuthenticatedAccountOrdersIndexRouteImport } from './routes/_authenticated.account.orders.index'
+import { Route as AuthenticatedCheckoutPayIdRouteImport } from './routes/_authenticated.checkout.pay.$id'
 import { Route as AuthenticatedAdminProductsNewRouteImport } from './routes/_authenticated.admin.products.new'
 import { Route as AuthenticatedAdminProductsIdRouteImport } from './routes/_authenticated.admin.products.$id'
 import { Route as AuthenticatedAdminOrdersIdRouteImport } from './routes/_authenticated.admin.orders.$id'
@@ -203,6 +204,12 @@ const AuthenticatedAccountOrdersIndexRoute =
     path: '/orders/',
     getParentRoute: () => AuthenticatedAccountRoute,
   } as any)
+const AuthenticatedCheckoutPayIdRoute =
+  AuthenticatedCheckoutPayIdRouteImport.update({
+    id: '/checkout/pay/$id',
+    path: '/checkout/pay/$id',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminProductsNewRoute =
   AuthenticatedAdminProductsNewRouteImport.update({
     id: '/products/new',
@@ -266,6 +273,7 @@ export interface FileRoutesByFullPath {
   '/admin/orders/$id': typeof AuthenticatedAdminOrdersIdRoute
   '/admin/products/$id': typeof AuthenticatedAdminProductsIdRoute
   '/admin/products/new': typeof AuthenticatedAdminProductsNewRoute
+  '/checkout/pay/$id': typeof AuthenticatedCheckoutPayIdRoute
   '/account/orders/': typeof AuthenticatedAccountOrdersIndexRoute
   '/admin/products/': typeof AuthenticatedAdminProductsIndexRoute
 }
@@ -299,6 +307,7 @@ export interface FileRoutesByTo {
   '/admin/orders/$id': typeof AuthenticatedAdminOrdersIdRoute
   '/admin/products/$id': typeof AuthenticatedAdminProductsIdRoute
   '/admin/products/new': typeof AuthenticatedAdminProductsNewRoute
+  '/checkout/pay/$id': typeof AuthenticatedCheckoutPayIdRoute
   '/account/orders': typeof AuthenticatedAccountOrdersIndexRoute
   '/admin/products': typeof AuthenticatedAdminProductsIndexRoute
 }
@@ -336,6 +345,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/orders/$id': typeof AuthenticatedAdminOrdersIdRoute
   '/_authenticated/admin/products/$id': typeof AuthenticatedAdminProductsIdRoute
   '/_authenticated/admin/products/new': typeof AuthenticatedAdminProductsNewRoute
+  '/_authenticated/checkout/pay/$id': typeof AuthenticatedCheckoutPayIdRoute
   '/_authenticated/account/orders/': typeof AuthenticatedAccountOrdersIndexRoute
   '/_authenticated/admin/products/': typeof AuthenticatedAdminProductsIndexRoute
 }
@@ -373,6 +383,7 @@ export interface FileRouteTypes {
     | '/admin/orders/$id'
     | '/admin/products/$id'
     | '/admin/products/new'
+    | '/checkout/pay/$id'
     | '/account/orders/'
     | '/admin/products/'
   fileRoutesByTo: FileRoutesByTo
@@ -406,6 +417,7 @@ export interface FileRouteTypes {
     | '/admin/orders/$id'
     | '/admin/products/$id'
     | '/admin/products/new'
+    | '/checkout/pay/$id'
     | '/account/orders'
     | '/admin/products'
   id:
@@ -442,6 +454,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/orders/$id'
     | '/_authenticated/admin/products/$id'
     | '/_authenticated/admin/products/new'
+    | '/_authenticated/checkout/pay/$id'
     | '/_authenticated/account/orders/'
     | '/_authenticated/admin/products/'
   fileRoutesById: FileRoutesById
@@ -664,6 +677,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAccountOrdersIndexRouteImport
       parentRoute: typeof AuthenticatedAccountRoute
     }
+    '/_authenticated/checkout/pay/$id': {
+      id: '/_authenticated/checkout/pay/$id'
+      path: '/checkout/pay/$id'
+      fullPath: '/checkout/pay/$id'
+      preLoaderRoute: typeof AuthenticatedCheckoutPayIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/products/new': {
       id: '/_authenticated/admin/products/new'
       path: '/products/new'
@@ -792,11 +812,13 @@ const AuthenticatedAdminRouteWithChildren =
 interface AuthenticatedRouteChildren {
   AuthenticatedAccountRoute: typeof AuthenticatedAccountRouteWithChildren
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
+  AuthenticatedCheckoutPayIdRoute: typeof AuthenticatedCheckoutPayIdRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAccountRoute: AuthenticatedAccountRouteWithChildren,
   AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
+  AuthenticatedCheckoutPayIdRoute: AuthenticatedCheckoutPayIdRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(

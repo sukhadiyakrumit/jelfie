@@ -7,8 +7,8 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { useCart } from "@/lib/cart";
 import { useCurrency } from "@/lib/currency";
-import { useWhatsappQuote } from "@/lib/use-whatsapp-quote";
 import { createInstantOrder } from "@/lib/checkout.functions";
+import { createQuoteRequest } from "@/lib/quotes.functions";
 import { supabase } from "@/integrations/supabase/client";
 
 const INSTANT_THRESHOLD_USD = 300;
