@@ -10,7 +10,7 @@ async function assertAdmin(userId: string) {
     .eq("user_id", userId)
     .eq("role", "admin")
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) { console.error(error); throw new Error("Request failed"); }
   if (!data) throw new Error("Forbidden: admin role required");
 }
 
@@ -41,14 +41,14 @@ export const saveProduct = createServerFn({ method: "POST" })
 
     if (productId) {
       const { error } = await supabaseAdmin.from("products").update(productFields).eq("id", productId);
-      if (error) throw new Error(error.message);
+      if (error) { console.error(error); throw new Error("Request failed"); }
     } else {
       const { data: inserted, error } = await supabaseAdmin
         .from("products")
         .insert(productFields)
         .select("id")
         .single();
-      if (error) throw new Error(error.message);
+      if (error) { console.error(error); throw new Error("Request failed"); }
       productId = inserted.id;
     }
 
@@ -58,7 +58,7 @@ export const saveProduct = createServerFn({ method: "POST" })
       const { error: imgError } = await supabaseAdmin
         .from("product_images")
         .insert(images.map((img) => ({ ...img, product_id: productId })));
-      if (imgError) throw new Error(imgError.message);
+      if (imgError) { console.error(imgError); throw new Error("Request failed"); }
     }
 
     return { id: productId };
@@ -71,7 +71,7 @@ export const deleteProduct = createServerFn({ method: "POST" })
     await assertAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("products").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return { ok: true };
   });
 
@@ -97,11 +97,11 @@ export const claimAdmin = createServerFn({ method: "POST" })
       .from("user_roles")
       .select("*", { count: "exact", head: true })
       .eq("role", "admin");
-    if (countError) throw new Error(countError.message);
+    if (countError) { console.error(countError); throw new Error("Request failed"); }
     if ((count ?? 0) > 0) throw new Error("An admin already exists");
     const { error } = await supabaseAdmin
       .from("user_roles")
       .insert({ user_id: context.userId, role: "admin" });
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return { ok: true };
   });

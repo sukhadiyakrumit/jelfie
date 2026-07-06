@@ -14,7 +14,7 @@ export const submitContactMessage = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("contact_messages").insert(data);
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return { ok: true };
   });
 
@@ -36,7 +36,7 @@ export const submitProductReview = createServerFn({ method: "POST" })
       .eq("quote_requests.user_id", context.userId)
       .eq("quote_requests.status", "delivered")
       .limit(1);
-    if (eErr) throw new Error(eErr.message);
+    if (eErr) { console.error(eErr); throw new Error("Request failed"); }
     if (!eligibleItems || eligibleItems.length === 0) {
       throw new Error("You can only review products from delivered orders.");
     }
@@ -47,7 +47,7 @@ export const submitProductReview = createServerFn({ method: "POST" })
         { ...data, user_id: context.userId, is_approved: false },
         { onConflict: "product_id,user_id" },
       );
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return { ok: true };
   });
 
@@ -61,7 +61,7 @@ export const listProductReviews = createServerFn({ method: "POST" })
       .eq("product_id", data.product_id)
       .eq("is_approved", true)
       .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     const list = rows ?? [];
     const userIds = Array.from(new Set(list.map((r: any) => r.user_id)));
     let profiles: Record<string, { full_name: string | null }> = {};

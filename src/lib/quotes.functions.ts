@@ -46,7 +46,7 @@ export const createQuoteRequest = createServerFn({ method: "POST" })
       .select("id, created_at")
       .single();
 
-    if (qErr || !quote) throw new Error(qErr?.message ?? "Failed to save quote");
+    if (qErr || !quote) { console.error(qErr); throw new Error("Failed to save quote"); }
 
     const { error: iErr } = await supabase.from("quote_request_items").insert(
       data.items.map((i) => ({
@@ -59,7 +59,7 @@ export const createQuoteRequest = createServerFn({ method: "POST" })
         image_url: i.imageUrl,
       })),
     );
-    if (iErr) throw new Error(iErr.message);
+    if (iErr) { console.error(iErr); throw new Error("Request failed"); }
 
     return { id: quote.id };
   });
@@ -75,6 +75,6 @@ export const listMyQuotes = createServerFn({ method: "GET" })
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return data ?? [];
   });

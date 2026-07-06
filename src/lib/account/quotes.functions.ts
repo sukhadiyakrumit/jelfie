@@ -15,7 +15,7 @@ export const getMyInquiry = createServerFn({ method: "GET" })
       .eq("id", data.id)
       .eq("user_id", userId)
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     if (!order) throw new Error("Inquiry not found");
     return order;
   });
@@ -37,7 +37,7 @@ export const acceptQuote = createServerFn({ method: "POST" })
       .from("quote_requests")
       .update({ status: "accepted", accepted_at: new Date().toISOString() })
       .eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return { ok: true };
   });
 
@@ -64,7 +64,7 @@ export const rejectQuote = createServerFn({ method: "POST" })
         rejection_reason: data.reason ?? null,
       })
       .eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return { ok: true };
   });
 
@@ -98,7 +98,7 @@ export const recordPaymentIntent = createServerFn({ method: "POST" })
       reference: data.reference ?? null,
       status: "pending",
     });
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     // Move quote into the fulfilment pipeline so it appears in the customer's Orders section
     await supabaseAdmin
       .from("quote_requests")

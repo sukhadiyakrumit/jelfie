@@ -16,6 +16,6 @@ export const getMyPayments = createServerFn({ method: "GET" })
       .select("id, quote_id, amount_usd, method, reference, status, invoice_number, paid_at, notes, created_at")
       .in("quote_id", ids)
       .order("paid_at", { ascending: false });
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return data ?? [];
   });

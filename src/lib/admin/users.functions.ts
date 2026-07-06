@@ -7,7 +7,7 @@ export const listAllUsers = createServerFn({ method: "GET" })
   .handler(async () => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: usersData, error } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     const users = usersData.users ?? [];
     const ids = users.map((u) => u.id);
     const [profiles, roles, quotes] = await Promise.all([
@@ -51,14 +51,14 @@ export const setUserAdmin = createServerFn({ method: "POST" })
       const { error } = await supabaseAdmin
         .from("user_roles")
         .upsert({ user_id: data.user_id, role: "admin" }, { onConflict: "user_id,role" });
-      if (error) throw new Error(error.message);
+      if (error) { console.error(error); throw new Error("Request failed"); }
     } else {
       const { error } = await supabaseAdmin
         .from("user_roles")
         .delete()
         .eq("user_id", data.user_id)
         .eq("role", "admin");
-      if (error) throw new Error(error.message);
+      if (error) { console.error(error); throw new Error("Request failed"); }
     }
     return { ok: true };
   });

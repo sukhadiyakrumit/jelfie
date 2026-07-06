@@ -41,7 +41,7 @@ export const createInstantOrder = createServerFn({ method: "POST" })
       })
       .select("id")
       .single();
-    if (error || !order) throw new Error(error?.message ?? "Failed to place order");
+    if (error || !order) { console.error(error); throw new Error("Failed to place order"); }
 
     const { error: iErr } = await supabase.from("quote_request_items").insert(
       data.items.map((i) => ({
@@ -54,7 +54,7 @@ export const createInstantOrder = createServerFn({ method: "POST" })
         image_url: i.imageUrl,
       })),
     );
-    if (iErr) throw new Error(iErr.message);
+    if (iErr) { console.error(iErr); throw new Error("Request failed"); }
 
     return { id: order.id };
   });

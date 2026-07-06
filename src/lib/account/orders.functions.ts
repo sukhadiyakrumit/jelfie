@@ -18,7 +18,7 @@ export const getMyOrders = createServerFn({ method: "GET" })
       .eq("user_id", userId)
       .or(`order_type.eq.instant,and(order_type.eq.quotation,status.in.(${ORDER_STATUSES.join(",")}))`)
       .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return data ?? [];
   });
 
@@ -32,7 +32,7 @@ export const getMyShipments = createServerFn({ method: "GET" })
       .eq("user_id", userId)
       .in("status", ACTIVE_SHIPMENT)
       .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return data ?? [];
   });
 
@@ -49,7 +49,7 @@ export const getMyInquiries = createServerFn({ method: "GET" })
       .eq("order_type", "quotation")
       .in("status", ["new", "contacted", "quoted", "accepted", "cancelled"])
       .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return data ?? [];
   });
 
@@ -66,7 +66,7 @@ export const getMyOrder = createServerFn({ method: "GET" })
       .eq("id", data.id)
       .eq("user_id", userId)
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     if (!order) throw new Error("Order not found");
 
     const [{ data: history }, { data: documents }, { data: payments }] = await Promise.all([

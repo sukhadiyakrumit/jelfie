@@ -17,7 +17,7 @@ export const getMyDocuments = createServerFn({ method: "GET" })
       .select("id, quote_id, doc_type, file_path, file_name, created_at")
       .in("quote_id", ids)
       .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return data ?? [];
   });
 
@@ -36,6 +36,6 @@ export const getDocumentSignedUrl = createServerFn({ method: "POST" })
     const { data: signed, error } = await supabase.storage
       .from("trade-documents")
       .createSignedUrl(doc.file_path, 60 * 10);
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return { url: signed.signedUrl, fileName: doc.file_name };
   });

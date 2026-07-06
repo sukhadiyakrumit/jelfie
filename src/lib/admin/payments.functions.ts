@@ -10,7 +10,7 @@ export const listAllPayments = createServerFn({ method: "GET" })
       .from("payments")
       .select("id, quote_id, amount_usd, method, reference, notes, paid_at, created_at")
       .order("paid_at", { ascending: false });
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return data ?? [];
   });
 
@@ -34,7 +34,7 @@ export const recordPayment = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin
       .from("payments")
       .insert({ ...row, recorded_by: context.userId });
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     if (mark_quote_paid) {
       await supabaseAdmin.from("quote_requests").update({ status: "paid" }).eq("id", data.quote_id);
     }
@@ -47,6 +47,6 @@ export const deletePayment = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("payments").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return { ok: true };
   });

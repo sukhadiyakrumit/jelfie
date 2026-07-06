@@ -20,7 +20,7 @@ export const listAllCategories = createServerFn({ method: "GET" })
       .from("categories")
       .select("id, name, slug, description, image_url, sort_order, is_active")
       .order("sort_order");
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return (data ?? []) as CategoryRow[];
   });
 
@@ -44,11 +44,11 @@ export const saveCategory = createServerFn({ method: "POST" })
     const { id, ...row } = data;
     if (id) {
       const { error } = await supabaseAdmin.from("categories").update(row).eq("id", id);
-      if (error) throw new Error(error.message);
+      if (error) { console.error(error); throw new Error("Request failed"); }
       return { id };
     } else {
       const { data: ins, error } = await supabaseAdmin.from("categories").insert(row).select("id").single();
-      if (error) throw new Error(error.message);
+      if (error) { console.error(error); throw new Error("Request failed"); }
       return { id: ins.id };
     }
   });
@@ -59,6 +59,6 @@ export const deleteCategory = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("categories").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return { ok: true };
   });

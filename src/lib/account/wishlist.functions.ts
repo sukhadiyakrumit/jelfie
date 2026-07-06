@@ -11,7 +11,7 @@ export const listMyWishlist = createServerFn({ method: "GET" })
       .select("id, created_at, products(id, slug, name, price_usd, in_stock, product_images(url, sort_order))")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return (data ?? []).map((row: any) => {
       const imgs = (row.products?.product_images ?? []).slice().sort((a: any, b: any) => a.sort_order - b.sort_order);
       return {
@@ -36,7 +36,7 @@ export const addToWishlist = createServerFn({ method: "POST" })
     const { error } = await supabase
       .from("wishlists")
       .insert({ user_id: userId, product_id: data.productId });
-    if (error && !error.message.includes("duplicate")) throw new Error(error.message);
+    if (error && !error.message.includes("duplicate")) { console.error(error); throw new Error("Request failed"); }
     return { ok: true };
   });
 
@@ -50,6 +50,6 @@ export const removeFromWishlist = createServerFn({ method: "POST" })
       .delete()
       .eq("user_id", userId)
       .eq("product_id", data.productId);
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return { ok: true };
   });
