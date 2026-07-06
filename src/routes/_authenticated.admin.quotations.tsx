@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Fragment, useState } from "react";
 import { toast } from "sonner";
-import { ExternalLink } from "lucide-react";
+
 import { listAllQuotations, updateQuotation, sendQuote } from "@/lib/admin/quotations.functions";
 import { STATUS_LABEL, statusBadgeClass } from "@/lib/account/status";
 
@@ -138,11 +138,6 @@ function QuotationsPage() {
                         >
                           {r.status === "quoted" ? "Revise Quote" : "Send Quote"}
                         </button>
-                      )}
-                      {r.whatsapp_url && (r.whatsapp_url.startsWith("https://wa.me/") || r.whatsapp_url.startsWith("https://api.whatsapp.com/")) && (
-                        <a href={r.whatsapp_url} target="_blank" rel="noreferrer noopener" className="text-gold" title="Open WhatsApp">
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
                       )}
                       <button
                         onClick={() => setOpenId(openId === r.id ? null : r.id)}

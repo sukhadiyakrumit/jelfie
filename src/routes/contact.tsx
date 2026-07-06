@@ -5,7 +5,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
-import { whatsappLink } from "@/lib/whatsapp";
 import { submitContactMessage } from "@/lib/feedback.functions";
 
 export const Route = createFileRoute("/contact")({
@@ -14,7 +13,7 @@ export const Route = createFileRoute("/contact")({
       { title: "Contact — Jelfie Jewellers" },
       {
         name: "description",
-        content: "Reach our atelier directly on WhatsApp or via the contact form for orders, quotes, and private commissions.",
+        content: "Reach our atelier via the contact form for orders, quotes, and private commissions.",
       },
       { property: "og:title", content: "Contact — Jelfie Jewellers" },
     ],
@@ -49,18 +48,8 @@ function ContactPage() {
         <span className="text-gold text-[10px] uppercase tracking-[0.3em] font-medium">Reach Us</span>
         <h1 className="font-serif text-5xl md:text-6xl italic mt-3 mb-8 leading-[1.1]">Speak with our atelier.</h1>
         <p className="text-onyx/70 leading-relaxed text-[15px] font-light max-w-xl mx-auto mb-10">
-          For orders, quotations, sizing questions, or a private commission — write to us below, or
-          message us directly on WhatsApp.
+          For orders, quotations, sizing questions, or a private commission — write to us using the form below.
         </p>
-
-        <a
-          href={whatsappLink("Hi Jelfie Jewellers, I'd like to enquire about your collection.")}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-block px-10 py-4 bg-onyx text-ivory text-[11px] uppercase tracking-[0.3em] hover:bg-gold transition-colors"
-        >
-          Message on WhatsApp
-        </a>
       </section>
 
       <section className="max-w-2xl mx-auto px-6 pb-20">
@@ -123,7 +112,7 @@ function ContactPage() {
 
         <div className="mt-12 pt-10 border-t border-onyx/10 grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.3em] text-onyx/40 mb-2">WhatsApp</p>
+            <p className="text-[10px] uppercase tracking-[0.3em] text-onyx/40 mb-2">Phone</p>
             <p className="font-serif text-xl">+91 98258 45024</p>
           </div>
           <div>

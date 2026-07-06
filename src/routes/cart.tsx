@@ -7,8 +7,8 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { useCart } from "@/lib/cart";
 import { useCurrency } from "@/lib/currency";
-import { useWhatsappQuote } from "@/lib/use-whatsapp-quote";
 import { createInstantOrder } from "@/lib/checkout.functions";
+import { createQuoteRequest } from "@/lib/quotes.functions";
 import { supabase } from "@/integrations/supabase/client";
 
 const INSTANT_THRESHOLD_USD = 300;
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/cart")({
   head: () => ({
     meta: [
       { title: "Your Selection — Jelfie Jewellers" },
-      { name: "description", content: "Review your selected pieces and send a quote request via WhatsApp." },
+      { name: "description", content: "Review your selected pieces and request a quote or check out instantly." },
     ],
   }),
   component: CartPage,
@@ -26,23 +26,29 @@ export const Route = createFileRoute("/cart")({
 function CartPage() {
   const { items, updateQty, removeItem, subtotalUsd, count, clear } = useCart();
   const { format, currency } = useCurrency();
-  const { sendCartQuote, busy: quoteBusy } = useWhatsappQuote();
   const placeInstant = useServerFn(createInstantOrder);
+  const makeQuote = useServerFn(createQuoteRequest);
   const navigate = useNavigate();
   const [instantBusy, setInstantBusy] = useState(false);
+  const [quoteBusy, setQuoteBusy] = useState(false);
 
   const recommendInstant = subtotalUsd > 0 && subtotalUsd < INSTANT_THRESHOLD_USD;
+
+  async function ensureSignedIn(redirect: string) {
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) {
+      toast.message("Please sign in to continue");
+      navigate({ to: "/account/sign-in", search: { redirect } });
+      return false;
+    }
+    return true;
+  }
 
   async function handleInstantCheckout() {
     if (instantBusy || items.length === 0) return;
     setInstantBusy(true);
     try {
-      const { data: auth } = await supabase.auth.getUser();
-      if (!auth.user) {
-        toast.message("Please sign in to check out");
-        navigate({ to: "/account/sign-in", search: { redirect: "/cart" } });
-        return;
-      }
+      if (!(await ensureSignedIn("/cart"))) return;
       const res = await placeInstant({
         data: {
           currency,
@@ -58,14 +64,44 @@ function CartPage() {
         },
       });
       clear();
-      toast.success("Order placed — awaiting payment confirmation");
-      navigate({ to: "/account/orders/$id", params: { id: res.id } });
+      navigate({ to: "/checkout/pay/$id", params: { id: res.id } });
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
       setInstantBusy(false);
     }
   }
+
+  async function handleRequestQuote() {
+    if (quoteBusy || items.length === 0) return;
+    setQuoteBusy(true);
+    try {
+      if (!(await ensureSignedIn("/cart"))) return;
+      await makeQuote({
+        data: {
+          currency,
+          totalUsd: subtotalUsd,
+          orderType: "quotation",
+          items: items.map((i) => ({
+            productId: i.productId,
+            name: i.name,
+            slug: i.slug,
+            priceUsd: i.priceUsd,
+            quantity: i.qty,
+            imageUrl: i.image,
+          })),
+        },
+      });
+      clear();
+      toast.success("Quote request submitted");
+      navigate({ to: "/account/inquiries" });
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setQuoteBusy(false);
+    }
+  }
+
 
 
   return (
@@ -207,36 +243,19 @@ function CartPage() {
                   </div>
                   <p className="font-serif text-xl italic">Request a quotation</p>
                   <p className="text-xs text-onyx/60 mt-1">
-                    Tailored pricing, bulk discounts and bespoke terms — discussed on WhatsApp with our team.
+                    Tailored pricing, bulk discounts and bespoke terms — our team will follow up with a final quote.
                   </p>
                   <button
                     type="button"
                     disabled={quoteBusy}
-                    onClick={() =>
-                      sendCartQuote(
-                        {
-                          items: items.map((i) => ({
-                            productId: i.productId,
-                            slug: i.slug,
-                            name: i.name,
-                            priceUsd: i.priceUsd,
-                            qty: i.qty,
-                            image: i.image,
-                          })),
-                          currency,
-                          format,
-                          subtotalUsd,
-                        },
-                        "/cart",
-                      )
-                    }
+                    onClick={handleRequestQuote}
                     className={`mt-4 w-full px-6 py-3 text-[11px] uppercase tracking-[0.3em] disabled:opacity-50 ${
                       !recommendInstant
                         ? "bg-onyx text-ivory hover:bg-gold"
                         : "border border-onyx/30 text-onyx hover:border-onyx"
                     }`}
                   >
-                    {quoteBusy ? "Opening WhatsApp…" : "Request Quotation on WhatsApp"}
+                    {quoteBusy ? "Submitting…" : "Request Quote"}
                   </button>
                 </div>
               </div>
