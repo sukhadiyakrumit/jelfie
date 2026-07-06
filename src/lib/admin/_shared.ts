@@ -11,7 +11,7 @@ export const requireAdmin = createMiddleware({ type: "function" })
       .eq("user_id", context.userId)
       .eq("role", "admin")
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     if (!data) throw new Error("Forbidden: admin role required");
     return next({ context });
   });

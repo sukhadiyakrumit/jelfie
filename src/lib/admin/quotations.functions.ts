@@ -17,7 +17,7 @@ export const listAllQuotations = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false });
     if (data?.orderType) query = query.eq("order_type", data.orderType);
     const { data: rows, error } = await query;
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     const list = rows ?? [];
     const userIds = Array.from(new Set(list.map((r: any) => r.user_id).filter(Boolean)));
     let profiles: Record<string, { full_name: string | null; phone: string | null }> = {};
@@ -52,7 +52,7 @@ export const updateQuotation = createServerFn({ method: "POST" })
     }
     if (internal_note !== undefined) patch.internal_note = internal_note;
     const { error } = await supabaseAdmin.from("quote_requests").update(patch).eq("id", id);
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return { ok: true };
   });
 
@@ -78,6 +78,6 @@ export const sendQuote = createServerFn({ method: "POST" })
         quoted_at: new Date().toISOString(),
       })
       .eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return { ok: true };
   });

@@ -43,7 +43,7 @@ export const updateOrderShipping = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { id, ...patch } = data;
     const { error } = await supabaseAdmin.from("quote_requests").update(patch).eq("id", id);
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return { ok: true };
   });
 
@@ -65,7 +65,7 @@ export const uploadOrderDocument = createServerFn({ method: "POST" })
     const { error: upErr } = await supabaseAdmin.storage
       .from("trade-documents")
       .upload(path, bytes, { contentType: data.content_type, upsert: false });
-    if (upErr) throw new Error(upErr.message);
+    if (upErr) { console.error(upErr); throw new Error("Request failed"); }
     const { error } = await supabaseAdmin.from("order_documents").insert({
       quote_id: data.quote_id,
       doc_type: data.doc_type,
@@ -73,7 +73,7 @@ export const uploadOrderDocument = createServerFn({ method: "POST" })
       file_name: data.file_name,
       uploaded_by: context.userId,
     });
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return { ok: true };
   });
 
@@ -87,7 +87,7 @@ export const deleteOrderDocument = createServerFn({ method: "POST" })
       await supabaseAdmin.storage.from("trade-documents").remove([doc.file_path]);
     }
     const { error } = await supabaseAdmin.from("order_documents").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return { ok: true };
   });
 
@@ -102,6 +102,6 @@ export const updatePaymentStatus = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("payments").update({ status: data.status }).eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return { ok: true };
   });

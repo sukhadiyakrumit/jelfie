@@ -40,7 +40,7 @@ export const getMyProfile = createServerFn({ method: "GET" })
       .select("*")
       .eq("id", userId)
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return data;
   });
 
@@ -50,7 +50,7 @@ export const updateMyProfile = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { error } = await supabase.from("profiles").upsert({ id: userId, ...data }, { onConflict: "id" });
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return { ok: true };
   });
 
@@ -71,7 +71,7 @@ export const listMyContacts = createServerFn({ method: "GET" })
       .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: true });
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return data ?? [];
   });
 
@@ -84,7 +84,7 @@ export const upsertContact = createServerFn({ method: "POST" })
     const { error } = data.id
       ? await supabase.from("authorized_contacts").update(row).eq("id", data.id).eq("user_id", userId)
       : await supabase.from("authorized_contacts").insert(row);
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return { ok: true };
   });
 
@@ -98,6 +98,6 @@ export const deleteContact = createServerFn({ method: "POST" })
       .delete()
       .eq("id", data.id)
       .eq("user_id", userId);
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return { ok: true };
   });

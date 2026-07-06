@@ -16,7 +16,7 @@ export const listPublicCategories = createServerFn({ method: "GET" }).handler(
       .select("id, name, slug, description, image_url")
       .eq("is_active", true)
       .order("sort_order");
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return (data ?? []) as PublicCategory[];
   },
 );

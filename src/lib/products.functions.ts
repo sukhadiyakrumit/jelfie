@@ -25,7 +25,7 @@ export const listProducts = createServerFn({ method: "GET" }).handler(
         "id, slug, name, category, metal, gemstone, weight_grams, price_usd, description, is_featured, in_stock, product_images(url, sort_order)",
       )
       .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     return (data ?? []).map((p) => ({
       ...p,
       price_usd: Number(p.price_usd),
@@ -46,7 +46,7 @@ export const getProductBySlug = createServerFn({ method: "GET" })
       )
       .eq("slug", data.slug)
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) { console.error(error); throw new Error("Request failed"); }
     if (!row) return null;
     return {
       ...row,
