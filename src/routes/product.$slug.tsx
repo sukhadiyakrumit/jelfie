@@ -1,5 +1,6 @@
-import { createFileRoute, notFound, Link } from "@tanstack/react-router";
+import { createFileRoute, notFound, Link, useNavigate } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { Heart } from "lucide-react";
 import { toast } from "sonner";
@@ -8,7 +9,8 @@ import { SiteFooter } from "@/components/site-footer";
 import { getProductBySlug } from "@/lib/products.functions";
 import { useCurrency } from "@/lib/currency";
 import { useCart, useWishlist } from "@/lib/cart";
-import { useWhatsappQuote } from "@/lib/use-whatsapp-quote";
+import { createQuoteRequest } from "@/lib/quotes.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { ProductReviews } from "@/components/product-reviews";
 
 const productQuery = (slug: string) =>
@@ -59,12 +61,49 @@ function ProductPage() {
   const { format, currency } = useCurrency();
   const { addItem } = useCart();
   const { has, toggle } = useWishlist();
-  const { sendProductQuote, busy: quoteBusy } = useWhatsappQuote();
+  const makeQuote = useServerFn(createQuoteRequest);
+  const navigate = useNavigate();
+  const [quoteBusy, setQuoteBusy] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
 
   const image = product.images[activeImage]?.url ?? product.images[0]?.url ?? null;
   const isWish = has(product.id);
-  const priceLabel = `${format(product.price_usd)} ${currency}`;
+
+  async function handleRequestQuote() {
+    if (quoteBusy) return;
+    setQuoteBusy(true);
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) {
+        toast.message("Please sign in to request a quote");
+        navigate({ to: "/account/sign-in", search: { redirect: `/product/${product.slug}` } });
+        return;
+      }
+      await makeQuote({
+        data: {
+          currency,
+          totalUsd: product.price_usd,
+          orderType: "quotation",
+          items: [
+            {
+              productId: product.id,
+              name: product.name,
+              slug: product.slug,
+              priceUsd: product.price_usd,
+              quantity: 1,
+              imageUrl: image,
+            },
+          ],
+        },
+      });
+      toast.success("Quote request submitted");
+      navigate({ to: "/account/inquiries" });
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setQuoteBusy(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-ivory text-onyx">
@@ -156,23 +195,10 @@ function ProductPage() {
             <button
               type="button"
               disabled={quoteBusy}
-              onClick={() =>
-                sendProductQuote(
-                  {
-                    productId: product.id,
-                    slug: product.slug,
-                    name: product.name,
-                    priceUsd: product.price_usd,
-                    imageUrl: image,
-                    currency,
-                    priceLabel,
-                  },
-                  `/product/${product.slug}`,
-                )
-              }
+              onClick={handleRequestQuote}
               className="px-8 py-4 border border-onyx text-onyx text-[11px] uppercase tracking-[0.3em] text-center hover:bg-onyx hover:text-ivory transition-colors disabled:opacity-50"
             >
-              {quoteBusy ? "Opening…" : "Request quote on WhatsApp"}
+              {quoteBusy ? "Submitting…" : "Request Quote"}
             </button>
           </div>
 
