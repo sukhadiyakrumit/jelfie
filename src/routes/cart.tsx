@@ -17,6 +17,9 @@ export const Route = createFileRoute("/cart")({
   head: () => ({
     meta: [
       { title: "Your Selection — Jelfie Jewellers" },
+      { name: "description", content: "Review your selected pieces and request a quote or check out instantly." },
+    ],
+      { title: "Your Selection — Jelfie Jewellers" },
       { name: "description", content: "Review your selected pieces and send a quote request via WhatsApp." },
     ],
   }),
