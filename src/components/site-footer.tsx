@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { whatsappLink } from "@/lib/whatsapp";
 
 export function SiteFooter() {
   return (
@@ -11,14 +10,6 @@ export function SiteFooter() {
         <div className="flex gap-10 text-[10px] uppercase tracking-widest text-onyx/60">
           <Link to="/about" className="hover:text-gold">About</Link>
           <Link to="/contact" className="hover:text-gold">Contact</Link>
-          <a
-            href={whatsappLink("Hi Jelfie Jewellers, I have a question about your collection.")}
-            target="_blank"
-            rel="noreferrer"
-            className="hover:text-gold"
-          >
-            WhatsApp
-          </a>
         </div>
       </div>
     </footer>

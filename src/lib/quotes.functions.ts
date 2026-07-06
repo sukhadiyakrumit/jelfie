@@ -13,33 +13,16 @@ type QuoteItemInput = {
 type CreateQuoteInput = {
   currency: string;
   totalUsd: number;
-  whatsappUrl: string;
   note?: string | null;
   orderType?: "instant" | "quotation";
   items: QuoteItemInput[];
 };
-
-// Only allow official WhatsApp deep-link hosts. Prevents javascript:/phishing URLs
-// from being stored and later rendered as trusted admin links.
-const ALLOWED_WHATSAPP_PREFIXES = ["https://wa.me/", "https://api.whatsapp.com/"];
-function isSafeWhatsappUrl(url: string): boolean {
-  try {
-    const u = new URL(url);
-    if (u.protocol !== "https:") return false;
-    return ALLOWED_WHATSAPP_PREFIXES.some((p) => url.startsWith(p));
-  } catch {
-    return false;
-  }
-}
 
 export const createQuoteRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: CreateQuoteInput) => {
     if (!data || !Array.isArray(data.items) || data.items.length === 0) {
       throw new Error("At least one item is required");
-    }
-    if (!data.whatsappUrl || !isSafeWhatsappUrl(data.whatsappUrl)) {
-      throw new Error("Invalid WhatsApp URL");
     }
     return data;
   })
@@ -48,7 +31,6 @@ export const createQuoteRequest = createServerFn({ method: "POST" })
     const orderType = data.orderType ?? "quotation";
 
     // Server-side price verification: never trust client-supplied prices.
-    // Look up prices from the product catalog and recompute the total.
     const productIds = Array.from(
       new Set(data.items.map((i) => i.productId).filter((v): v is string => !!v)),
     );
@@ -91,7 +73,7 @@ export const createQuoteRequest = createServerFn({ method: "POST" })
         user_id: userId,
         currency: data.currency,
         total_usd: verifiedTotalUsd,
-        whatsapp_url: data.whatsappUrl,
+        whatsapp_url: "",
         note: data.note ?? null,
         order_type: orderType,
         status: orderType === "instant" ? "pending_payment" : "new",
@@ -124,7 +106,7 @@ export const listMyQuotes = createServerFn({ method: "GET" })
     const { data, error } = await supabase
       .from("quote_requests")
       .select(
-        "id, created_at, currency, total_usd, whatsapp_url, status, order_type, quote_request_items(id, name, slug, price_usd, quantity, image_url)",
+        "id, created_at, currency, total_usd, status, order_type, quote_request_items(id, name, slug, price_usd, quantity, image_url)",
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
