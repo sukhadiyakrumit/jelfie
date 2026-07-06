@@ -63,7 +63,7 @@ function InquiriesPage() {
                     )}
                     {showPay && (
                       <Link
-                        to="/account/inquiries/$id/pay"
+                        to="/checkout/pay/$id"
                         params={{ id: o.id }}
                         className="px-4 py-2 bg-gold text-onyx text-[11px] uppercase tracking-widest hover:bg-onyx hover:text-ivory"
                       >
