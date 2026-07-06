@@ -115,12 +115,14 @@ function OrderDetailPage() {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={downloadInvoice}
-            className="inline-flex items-center gap-2 px-4 py-2 border border-onyx/30 text-[11px] uppercase tracking-widest hover:border-gold hover:text-gold"
-          >
-            <FileDown className="w-4 h-4" /> Invoice
-          </button>
+          {["paid","processing","shipped","in_transit","delivered","closed"].includes(order.status) && (
+            <button
+              onClick={downloadInvoice}
+              className="inline-flex items-center gap-2 px-4 py-2 border border-onyx/30 text-[11px] uppercase tracking-widest hover:border-gold hover:text-gold"
+            >
+              <FileDown className="w-4 h-4" /> Invoice
+            </button>
+          )}
           <button
             onClick={() => reorderMut.mutate()}
             disabled={reorderMut.isPending}
