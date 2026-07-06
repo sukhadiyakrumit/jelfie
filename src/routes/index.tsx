@@ -4,7 +4,7 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { ProductCard } from "@/components/product-card";
 import { listProducts } from "@/lib/products.functions";
-import { whatsappLink } from "@/lib/whatsapp";
+
 import heroImage from "@/assets/hero.jpg";
 import ringsImage from "@/assets/collection-rings.jpg";
 import necklacesImage from "@/assets/collection-necklaces.jpg";
@@ -22,7 +22,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Handcrafted fine jewellery — rings, necklaces, earrings, and bespoke pieces. Shipped worldwide. Request a quote on WhatsApp.",
+          "Handcrafted fine jewellery — rings, necklaces, earrings, and bespoke pieces. Shipped worldwide.",
       },
       { property: "og:title", content: "Jelfie Jewellers — Timeless Craft for the Modern Soul" },
       {
@@ -147,22 +147,20 @@ function HomePage() {
         )}
       </section>
 
-      {/* WhatsApp CTA */}
+      {/* Bespoke CTA */}
       <section className="py-20 bg-gold/5 border-t border-gold/10">
         <div className="max-w-7xl mx-auto px-6 flex flex-col items-center text-center">
           <h3 className="font-serif text-3xl italic mb-6">Seeking a Bespoke Masterpiece?</h3>
           <p className="text-onyx/60 text-sm max-w-lg mb-10 leading-relaxed font-light">
-            Connect with our master jewellers via WhatsApp for personalised consultations, custom
+            Connect with our master jewellers for personalised consultations, custom
             designs, or valuation requests.
           </p>
-          <a
-            href={whatsappLink("Hi Jelfie Jewellers, I'd like to enquire about a bespoke piece.")}
-            target="_blank"
-            rel="noreferrer"
+          <Link
+            to="/contact"
             className="inline-flex items-center gap-4 px-12 py-5 bg-onyx text-ivory text-[11px] font-medium uppercase tracking-[0.3em] hover:bg-gold transition-colors"
           >
-            Connect on WhatsApp
-          </a>
+            Contact our atelier
+          </Link>
         </div>
       </section>
 

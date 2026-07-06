@@ -87,7 +87,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "Jelfie Jewellers — handcrafted fine jewellery shipped worldwide. Browse rings, necklaces, earrings, and bespoke pieces. Request a quote on WhatsApp.",
+          "Jelfie Jewellers — handcrafted fine jewellery shipped worldwide. Browse rings, necklaces, earrings, and bespoke pieces.",
       },
       { name: "author", content: "Jelfie Jewellers" },
       { property: "og:title", content: "Jelfie Jewellers" },

@@ -112,7 +112,7 @@ function ContactPage() {
 
         <div className="mt-12 pt-10 border-t border-onyx/10 grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.3em] text-onyx/40 mb-2">WhatsApp</p>
+            <p className="text-[10px] uppercase tracking-[0.3em] text-onyx/40 mb-2">Phone</p>
             <p className="font-serif text-xl">+91 98258 45024</p>
           </div>
           <div>
