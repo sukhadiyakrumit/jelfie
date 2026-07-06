@@ -88,20 +88,11 @@ export const checkIsAdmin = createServerFn({ method: "GET" })
     return { isAdmin: !!data, userId: context.userId };
   });
 
-// Bootstrap: first user to claim admin gets it. Subsequent calls fail.
+// Admin bootstrap is disabled. Assign the admin role via a database migration
+// (INSERT INTO public.user_roles ...) or via a trusted server-side script.
+// Automatic self-service claim is a privilege-escalation risk and has been removed.
 export const claimAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { count, error: countError } = await supabaseAdmin
-      .from("user_roles")
-      .select("*", { count: "exact", head: true })
-      .eq("role", "admin");
-    if (countError) { console.error(countError); throw new Error("Request failed"); }
-    if ((count ?? 0) > 0) throw new Error("An admin already exists");
-    const { error } = await supabaseAdmin
-      .from("user_roles")
-      .insert({ user_id: context.userId, role: "admin" });
-    if (error) { console.error(error); throw new Error("Request failed"); }
-    return { ok: true };
+  .handler(async () => {
+    throw new Error("Admin bootstrap is disabled. Contact the site owner.");
   });
