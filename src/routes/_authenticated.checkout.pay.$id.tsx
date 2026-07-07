@@ -30,6 +30,7 @@ function CheckoutPayPage() {
       qc.invalidateQueries({ queryKey: ["account-orders"] });
       qc.invalidateQueries({ queryKey: ["inquiry", id] });
       qc.invalidateQueries({ queryKey: ["order", id] });
+      qc.invalidateQueries({ queryKey: ["account-dashboard"] });
       navigate({ to: "/account/orders/$id", params: { id } });
     },
     onError: (e: Error) => toast.error(e.message),
