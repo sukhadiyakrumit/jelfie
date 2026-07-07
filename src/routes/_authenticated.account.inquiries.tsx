@@ -29,7 +29,7 @@ function InquiriesPage() {
         <ul className="space-y-3">
           {data.map((o: any) => {
             const showReview = o.status === "quoted";
-            const showPay = o.status === "accepted";
+            const showPay = o.status === "accepted" || o.status === "pending_payment";
             return (
               <li key={o.id} className="border border-onyx/10 bg-white p-5 hover:border-gold">
                 <div className="flex items-baseline justify-between gap-2">
@@ -52,7 +52,7 @@ function InquiriesPage() {
                     )}
                   </div>
                   <div className="flex gap-2">
-                    {showReview && (
+                    {showReview ? (
                       <Link
                         to="/account/inquiries/$id"
                         params={{ id: o.id }}
@@ -60,8 +60,7 @@ function InquiriesPage() {
                       >
                         Review Quote
                       </Link>
-                    )}
-                    {showPay && (
+                    ) : showPay ? (
                       <Link
                         to="/checkout/pay/$id"
                         params={{ id: o.id }}
@@ -69,8 +68,7 @@ function InquiriesPage() {
                       >
                         Pay Now
                       </Link>
-                    )}
-                    {!showReview && (
+                    ) : (
                       <Link
                         to="/account/inquiries/$id"
                         params={{ id: o.id }}
