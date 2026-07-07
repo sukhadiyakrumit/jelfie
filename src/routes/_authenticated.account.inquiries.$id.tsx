@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -14,8 +14,11 @@ export const Route = createFileRoute("/_authenticated/account/inquiries/$id")({
   component: InquiryDetailPage,
 });
 
+const FULFILMENT = ["paid", "processing", "shipped", "in_transit", "delivered", "closed"];
+
 function InquiryDetailPage() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const fetchOne = useServerFn(getMyInquiry);
   const doAccept = useServerFn(acceptQuote);
@@ -29,13 +32,15 @@ function InquiryDetailPage() {
     qc.invalidateQueries({ queryKey: ["account-inquiries"] });
     qc.invalidateQueries({ queryKey: ["inquiry", id] });
     qc.invalidateQueries({ queryKey: ["account-orders"] });
+    qc.invalidateQueries({ queryKey: ["account-dashboard"] });
   };
 
   const accept = useMutation({
     mutationFn: () => doAccept({ data: { id } }),
     onSuccess: () => {
-      toast.success("Quote accepted. Proceed to payment.");
+      toast.success("Quote accepted. Redirecting to payment…");
       invalidate();
+      navigate({ to: "/checkout/pay/$id", params: { id } });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -52,9 +57,11 @@ function InquiryDetailPage() {
 
   if (q.isLoading || !q.data) return <div className="p-10 text-onyx/50">Loading…</div>;
   const o = q.data as any;
-  const canRespond = o.status === "quoted";
-  const canPay = o.status === "accepted";
-  const paymentDone = ["paid", "processing", "shipped", "in_transit", "delivered"].includes(o.status);
+  const status: string = o.status;
+  const isQuoted = status === "quoted";
+  const canPay = status === "accepted" || status === "pending_payment";
+  const isFulfilment = FULFILMENT.includes(status);
+  const isAwaiting = status === "new" || status === "contacted";
   const amount = Number(o.final_price_usd ?? o.total_usd);
 
   return (
@@ -64,8 +71,8 @@ function InquiryDetailPage() {
       </Link>
       <div className="mt-2 mb-6 flex items-baseline justify-between flex-wrap gap-3">
         <h1 className="font-serif text-4xl italic">Quotation #{o.id.slice(0, 8).toUpperCase()}</h1>
-        <span className={`text-[10px] uppercase tracking-widest px-2 py-1 ${statusBadgeClass(o.status)}`}>
-          {STATUS_LABEL[o.status] ?? o.status}
+        <span className={`text-[10px] uppercase tracking-widest px-2 py-1 ${statusBadgeClass(status)}`}>
+          {STATUS_LABEL[status] ?? status}
         </span>
       </div>
 
@@ -93,11 +100,18 @@ function InquiryDetailPage() {
         </div>
       </section>
 
-      {o.final_price_usd != null && (
+      {isAwaiting && (
+        <div className="border border-onyx/10 bg-white p-6 text-sm mb-6">
+          <p className="text-[10px] uppercase tracking-widest text-onyx/50 mb-1">Awaiting quote</p>
+          <p>Our team is reviewing your request. You will see the final price here as soon as it is ready.</p>
+        </div>
+      )}
+
+      {isQuoted && (
         <section className="border-2 border-gold bg-white p-6 mb-6">
           <p className="text-[10px] uppercase tracking-widest text-gold mb-1">Final quote from Jelfie</p>
           <p className="font-serif text-4xl italic">
-            ${Number(o.final_price_usd).toLocaleString()}{" "}
+            ${amount.toLocaleString()}{" "}
             <span className="text-base text-onyx/60">{o.currency}</span>
           </p>
           {o.quoted_at && (
@@ -112,7 +126,7 @@ function InquiryDetailPage() {
             </div>
           )}
 
-          {canRespond && !rejecting && (
+          {!rejecting && (
             <div className="mt-6 flex gap-3">
               <button
                 onClick={() => accept.mutate()}
@@ -130,7 +144,7 @@ function InquiryDetailPage() {
             </div>
           )}
 
-          {canRespond && rejecting && (
+          {rejecting && (
             <div className="mt-6">
               <label className="block mb-3">
                 <span className="text-[10px] uppercase tracking-widest text-onyx/50">Reason (optional)</span>
@@ -178,7 +192,7 @@ function InquiryDetailPage() {
         </section>
       )}
 
-      {paymentDone && (
+      {isFulfilment && (
         <div className="border border-green-200 bg-green-50 p-6 text-sm">
           <p className="text-[10px] uppercase tracking-widest text-green-700 mb-1">Payment received</p>
           <p className="mb-3">
@@ -194,10 +208,10 @@ function InquiryDetailPage() {
         </div>
       )}
 
-      {o.status === "cancelled" && o.rejection_reason && (
+      {status === "cancelled" && (
         <div className="border border-red-200 bg-red-50 p-4 text-sm mt-4">
-          <p className="text-[10px] uppercase tracking-widest text-red-700 mb-1">Your decline reason</p>
-          <p>{o.rejection_reason}</p>
+          <p className="text-[10px] uppercase tracking-widest text-red-700 mb-1">Quotation cancelled</p>
+          {o.rejection_reason && <p>{o.rejection_reason}</p>}
         </div>
       )}
     </div>
