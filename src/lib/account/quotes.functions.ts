@@ -32,6 +32,9 @@ export const acceptQuote = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .maybeSingle();
     if (!row) throw new Error("Inquiry not found");
+    if (row.status === "accepted" || row.status === "pending_payment") {
+      return { ok: true, alreadyAccepted: true };
+    }
     if (row.status !== "quoted") throw new Error("Quote is not awaiting your response");
     const { error } = await supabase
       .from("quote_requests")
