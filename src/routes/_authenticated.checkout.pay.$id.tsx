@@ -79,6 +79,7 @@ function CheckoutPayPage() {
 
   const startPayment = useCallback(async () => {
     try {
+      setFailure(null);
       setProcessing(true);
       await loadRazorpay();
       const order = await createOrder({ data: { id } });
