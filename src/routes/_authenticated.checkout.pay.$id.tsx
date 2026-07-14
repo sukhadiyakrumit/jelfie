@@ -49,6 +49,7 @@ function CheckoutPayPage() {
   const createOrder = useServerFn(createRazorpayOrder);
   const verifyPayment = useServerFn(verifyRazorpayPayment);
   const [processing, setProcessing] = useState(false);
+  const [failure, setFailure] = useState<{ message: string; code?: string; paymentId?: string } | null>(null);
 
   const q = useQuery({ queryKey: ["payable-order", id], queryFn: () => fetchOrder({ data: { id } }) });
 
