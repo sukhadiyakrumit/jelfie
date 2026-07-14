@@ -70,7 +70,9 @@ function CheckoutPayPage() {
       navigate({ to: "/account/orders/$id", params: { id } });
     },
     onError: (e: Error) => {
-      toast.error(e.message || "Payment verification failed");
+      const msg = e.message || "Payment verification failed";
+      toast.error(msg, { duration: 6000 });
+      setFailure({ message: msg });
       setProcessing(false);
     },
   });
