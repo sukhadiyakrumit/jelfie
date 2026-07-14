@@ -1,29 +1,63 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import { CreditCard, Smartphone, Landmark, Lock } from "lucide-react";
-import { getPayableOrder, completeDummyPayment } from "@/lib/account/quotes.functions";
+import { Lock, ShieldCheck } from "lucide-react";
+import {
+  getPayableOrder,
+  createRazorpayOrder,
+  verifyRazorpayPayment,
+} from "@/lib/account/quotes.functions";
 
 export const Route = createFileRoute("/_authenticated/checkout/pay/$id")({
   component: CheckoutPayPage,
 });
 
-type Method = "card" | "upi" | "netbanking";
+declare global {
+  interface Window {
+    Razorpay?: any;
+  }
+}
+
+const RAZORPAY_SRC = "https://checkout.razorpay.com/v1/checkout.js";
+
+function loadRazorpay(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined") return reject(new Error("No window"));
+    if (window.Razorpay) return resolve();
+    const existing = document.querySelector<HTMLScriptElement>(`script[src="${RAZORPAY_SRC}"]`);
+    if (existing) {
+      existing.addEventListener("load", () => resolve());
+      existing.addEventListener("error", () => reject(new Error("Failed to load Razorpay")));
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = RAZORPAY_SRC;
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("Failed to load Razorpay"));
+    document.body.appendChild(s);
+  });
+}
 
 function CheckoutPayPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const fetchOrder = useServerFn(getPayableOrder);
-  const doPay = useServerFn(completeDummyPayment);
-  const [method, setMethod] = useState<Method>("card");
+  const createOrder = useServerFn(createRazorpayOrder);
+  const verifyPayment = useServerFn(verifyRazorpayPayment);
+  const [processing, setProcessing] = useState(false);
 
   const q = useQuery({ queryKey: ["payable-order", id], queryFn: () => fetchOrder({ data: { id } }) });
 
-  const pay = useMutation({
-    mutationFn: () => doPay({ data: { id } }),
+  const verify = useMutation({
+    mutationFn: (payload: {
+      razorpay_order_id: string;
+      razorpay_payment_id: string;
+      razorpay_signature: string;
+    }) => verifyPayment({ data: { id, ...payload } }),
     onSuccess: () => {
       toast.success("Payment successful");
       qc.invalidateQueries({ queryKey: ["account-inquiries"] });
@@ -31,10 +65,54 @@ function CheckoutPayPage() {
       qc.invalidateQueries({ queryKey: ["inquiry", id] });
       qc.invalidateQueries({ queryKey: ["order", id] });
       qc.invalidateQueries({ queryKey: ["account-dashboard"] });
+      qc.invalidateQueries({ queryKey: ["payable-order", id] });
       navigate({ to: "/account/orders/$id", params: { id } });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => {
+      toast.error(e.message || "Payment verification failed");
+      setProcessing(false);
+    },
   });
+
+  const startPayment = useCallback(async () => {
+    try {
+      setProcessing(true);
+      await loadRazorpay();
+      const order = await createOrder({ data: { id } });
+      if (!window.Razorpay) throw new Error("Razorpay failed to load");
+
+      const rzp = new window.Razorpay({
+        key: order.keyId,
+        order_id: order.razorpayOrderId,
+        amount: order.amount,
+        currency: order.currency,
+        name: "Jelfie Jewellers",
+        description: `Order ${id.slice(0, 8).toUpperCase()}`,
+        theme: { color: "#0c2451" },
+        handler: (resp: {
+          razorpay_order_id: string;
+          razorpay_payment_id: string;
+          razorpay_signature: string;
+        }) => {
+          verify.mutate(resp);
+        },
+        modal: {
+          ondismiss: () => {
+            setProcessing(false);
+            toast("Payment cancelled");
+          },
+        },
+      });
+      rzp.on("payment.failed", (resp: any) => {
+        setProcessing(false);
+        toast.error(resp?.error?.description || "Payment failed");
+      });
+      rzp.open();
+    } catch (e: any) {
+      setProcessing(false);
+      toast.error(e?.message || "Could not start payment");
+    }
+  }, [createOrder, id, verify]);
 
   if (q.isLoading || !q.data) return <div className="p-10 text-onyx/50">Loading…</div>;
   const o = q.data as any;
@@ -62,79 +140,53 @@ function CheckoutPayPage() {
     <div className="min-h-screen bg-ivory">
       <div className="max-w-xl mx-auto px-4 py-10">
         <div className="bg-white border border-onyx/10 shadow-sm">
-          {/* Razorpay-style header */}
           <header className="bg-[#0c2451] text-white px-6 py-4 flex items-center justify-between">
             <div>
-              <div className="text-[10px] uppercase tracking-widest opacity-70">Powered by</div>
-              <div className="font-semibold text-lg tracking-tight">Razorpay <span className="text-[10px] font-normal opacity-70">(Sandbox)</span></div>
+              <div className="text-[10px] uppercase tracking-widest opacity-70">Secure payment via</div>
+              <div className="font-semibold text-lg tracking-tight">Razorpay</div>
             </div>
             <div className="text-right">
               <div className="text-[10px] uppercase tracking-widest opacity-70">Amount</div>
-              <div className="font-semibold text-xl">${amount.toLocaleString()} <span className="text-xs opacity-70">{o.currency}</span></div>
+              <div className="font-semibold text-xl">
+                ${amount.toLocaleString()} <span className="text-xs opacity-70">USD</span>
+              </div>
             </div>
           </header>
 
-          <div className="px-6 py-6">
+          <div className="px-6 py-8">
             <p className="text-[10px] uppercase tracking-widest text-onyx/50 mb-1">Merchant</p>
             <p className="font-serif italic text-xl mb-6">Jelfie Jewellers</p>
 
-            <p className="text-[10px] uppercase tracking-widest text-onyx/50 mb-3">Select payment method</p>
-            <div className="space-y-2 mb-6">
-              <MethodOption
-                icon={<CreditCard className="w-4 h-4" />}
-                title="Card"
-                subtitle="Visa, Mastercard, RuPay, Amex"
-                active={method === "card"}
-                onClick={() => setMethod("card")}
-              />
-              <MethodOption
-                icon={<Smartphone className="w-4 h-4" />}
-                title="UPI"
-                subtitle="Google Pay, PhonePe, Paytm"
-                active={method === "upi"}
-                onClick={() => setMethod("upi")}
-              />
-              <MethodOption
-                icon={<Landmark className="w-4 h-4" />}
-                title="Netbanking"
-                subtitle="All Indian banks"
-                active={method === "netbanking"}
-                onClick={() => setMethod("netbanking")}
-              />
+            <div className="border border-onyx/10 p-4 mb-6 bg-onyx/[0.02] text-sm space-y-2">
+              <div className="flex justify-between">
+                <span className="text-onyx/60">Order</span>
+                <span className="font-mono">#{id.slice(0, 8).toUpperCase()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-onyx/60">Total</span>
+                <span className="font-medium">${amount.toLocaleString()} USD</span>
+              </div>
             </div>
 
-            {method === "card" && (
-              <div className="border border-onyx/15 p-4 mb-6 space-y-3 bg-onyx/[0.02]">
-                <MockField label="Card number" placeholder="4242 4242 4242 4242" />
-                <div className="grid grid-cols-2 gap-3">
-                  <MockField label="Expiry" placeholder="MM/YY" />
-                  <MockField label="CVV" placeholder="123" />
-                </div>
-                <MockField label="Name on card" placeholder="Cardholder name" />
-              </div>
-            )}
-            {method === "upi" && (
-              <div className="border border-onyx/15 p-4 mb-6 bg-onyx/[0.02]">
-                <MockField label="UPI ID" placeholder="yourname@upi" />
-              </div>
-            )}
-            {method === "netbanking" && (
-              <div className="border border-onyx/15 p-4 mb-6 bg-onyx/[0.02]">
-                <MockField label="Bank" placeholder="Select your bank" />
-              </div>
-            )}
-
             <button
-              onClick={() => pay.mutate()}
-              disabled={pay.isPending}
+              onClick={startPayment}
+              disabled={processing || verify.isPending}
               className="w-full py-4 bg-[#0c2451] text-white text-sm font-medium uppercase tracking-widest hover:bg-[#08183a] disabled:opacity-50"
             >
-              {pay.isPending ? "Processing…" : `Pay $${amount.toLocaleString()}`}
+              {verify.isPending
+                ? "Confirming…"
+                : processing
+                ? "Opening Razorpay…"
+                : `Pay $${amount.toLocaleString()} with Razorpay`}
             </button>
 
             <div className="mt-4 flex items-center justify-center gap-2 text-[11px] text-onyx/50">
               <Lock className="w-3 h-3" />
-              <span>Secured by Razorpay · This is a sandbox test payment (no real charge)</span>
+              <span>Cards, UPI, Netbanking & Wallets · 256-bit encrypted</span>
+            </div>
+            <div className="mt-2 flex items-center justify-center gap-2 text-[11px] text-onyx/50">
+              <ShieldCheck className="w-3 h-3" />
+              <span>Payment is confirmed only after Razorpay success</span>
             </div>
           </div>
         </div>
@@ -150,50 +202,5 @@ function CheckoutPayPage() {
         </div>
       </div>
     </div>
-  );
-}
-
-function MethodOption({
-  icon,
-  title,
-  subtitle,
-  active,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  subtitle: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-3 border text-left ${
-        active ? "border-[#0c2451] bg-[#0c2451]/5" : "border-onyx/15 hover:border-onyx/40"
-      }`}
-    >
-      <span className={`w-8 h-8 grid place-items-center rounded-full ${active ? "bg-[#0c2451] text-white" : "bg-onyx/10 text-onyx"}`}>
-        {icon}
-      </span>
-      <span className="flex-1">
-        <span className="block text-sm font-medium">{title}</span>
-        <span className="block text-[11px] text-onyx/50">{subtitle}</span>
-      </span>
-      <span className={`w-4 h-4 rounded-full border-2 ${active ? "border-[#0c2451] bg-[#0c2451]" : "border-onyx/30"}`} />
-    </button>
-  );
-}
-
-function MockField({ label, placeholder }: { label: string; placeholder: string }) {
-  return (
-    <label className="block">
-      <span className="block text-[10px] uppercase tracking-widest text-onyx/50 mb-1">{label}</span>
-      <input
-        placeholder={placeholder}
-        className="w-full border border-onyx/20 px-3 py-2 text-sm bg-white"
-      />
-    </label>
   );
 }
