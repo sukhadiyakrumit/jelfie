@@ -1,43 +1,59 @@
 ## Goal
-Make the Inquiries → Accept → Pay → Orders flow reliable end-to-end. Today, on a quoted inquiry, the detail page sometimes doesn't render the quote block / Accept button, so the customer is stuck.
+Replace the dummy checkout on `/checkout/pay/$id` with a real Razorpay Checkout integration. Order is marked `paid` only after Razorpay confirms payment and the signature is verified server-side. Charges go through in **USD** (requires international/USD-enabled Razorpay account).
 
-## Changes
+## Step 0 — Get Razorpay test keys (user does this once)
+Before we can code the integration, you need Razorpay API keys. I'll explain in chat, not in code:
 
-### 1. `src/routes/_authenticated.account.inquiries.$id.tsx` — rebuild states
-Render one of four clearly-defined states based on `status`, so the quoted card and Accept button always show when applicable:
+1. Go to https://razorpay.com and sign up (free, no docs required, works with just an email).
+2. On the dashboard, stay in **Test Mode** (toggle top-right).
+3. Go to **Account & Settings → API Keys → Generate Test Key**.
+4. Copy the **Key ID** (starts with `rzp_test_...`) and the **Key Secret**.
+5. Because we're charging in USD: request USD support via **Account & Settings → International Payments**. In test mode USD often works out of the box; if Razorpay refuses `currency: "USD"` at order-create time we'll switch to INR conversion.
 
-- `new` / `contacted` — "Awaiting quote from our team".
-- `quoted` — Always render the "Final quote" card with `final_price_usd ?? total_usd` (fallback so the card never disappears if price is null), plus **Accept Quote** and **Decline** buttons.
-- `accepted` / `pending_payment` — Show a prominent **Pay Now** card linking to `/checkout/pay/$id`.
-- `cancelled` — Show decline reason.
-- Paid/fulfilment statuses — Show "Payment received" with a link to `/account/orders/$id`.
+Once you have both values, I'll open a secure form to save them.
 
-Also: on Accept success, auto-navigate straight to `/checkout/pay/$id` (instead of just updating the panel) so the customer never has to hunt for the next button.
+## Step 1 — Save secrets
+When we move to build mode I'll call `add_secret` for:
+- `RAZORPAY_KEY_ID` — public-ish, used server-side to create orders and returned to the browser so Checkout knows which merchant.
+- `RAZORPAY_KEY_SECRET` — private, used only server-side for order creation (Basic auth) and HMAC signature verification.
 
-### 2. `src/routes/_authenticated.account.inquiries.tsx` — list buttons
-- For `status = 'quoted'` → keep **Review Quote** → `/account/inquiries/$id`.
-- For `status = 'accepted'` or `'pending_payment'` → **Pay Now** → `/checkout/pay/$id`.
-- For all other statuses → **Details** → `/account/inquiries/$id`.
-- Never render both Review Quote and Details for the same row.
+No `.env` changes; the Key ID is returned by the server function so the client never reads env directly.
 
-### 3. `src/routes/_authenticated.checkout.pay.$id.tsx` — post-payment redirect
-Already redirects to `/account/orders/$id` after payment. Add these query invalidations before navigating so the Orders page & sidebar counts are fresh:
-- `["account-orders"]`, `["account-inquiries"]`, `["order", id]`, `["inquiry", id]`, `["account-dashboard"]`.
+## Step 2 — Server functions (`src/lib/account/quotes.functions.ts`)
+Add two new functions, remove the old `completeDummyPayment`:
 
-### 4. `src/lib/account/orders.functions.ts` — ensure paid quotation shows in Orders
-`getMyOrders` currently filters quotations by `status.in.(pending_payment, paid, processing, shipped, in_transit, delivered, closed)`. Keep as-is — verified `completeDummyPayment` sets `status = 'paid'`, so the paid quotation will appear. No change needed; only verify by testing.
+**`createRazorpayOrder({ id })`** — auth-protected.
+1. Load quote, verify user ownership + status is `accepted` or `pending_payment`.
+2. `fetch("https://api.razorpay.com/v1/orders", { method: "POST", headers: { Authorization: "Basic " + btoa(KEY_ID + ":" + KEY_SECRET) }, body: JSON.stringify({ amount: Math.round(usd * 100), currency: "USD", receipt: quote.id }) })`.
+3. Return `{ razorpayOrderId, amount, currency, keyId }` to the browser.
+4. On Razorpay error, surface a clean message (esp. the "USD not enabled" case so you know to enable it).
 
-### 5. `src/lib/account/quotes.functions.ts` — small safety
-`acceptQuote` currently returns `{ ok: true }`. Keep, but ensure it never throws when the row is already `accepted` (idempotent) so a double-click doesn't produce a confusing error.
+**`verifyRazorpayPayment({ id, razorpay_order_id, razorpay_payment_id, razorpay_signature })`** — auth-protected.
+1. Compute `expected = HMAC_SHA256(order_id + "|" + payment_id, KEY_SECRET)` using Node `crypto`, `timingSafeEqual` compare against `razorpay_signature`.
+2. If mismatch → throw; do NOT mark paid.
+3. If match → via `supabaseAdmin`: insert `payments` row (method=`razorpay`, reference=`razorpay_payment_id`, status=`completed`, `invoice_number`), update `quote_requests.status='paid'`, `paid_at=now()`.
+4. Return `{ ok: true, reference, invoiceNumber }`.
 
-## Verification steps
-1. As a customer with a `quoted` inquiry: open Inquiries → click **Review Quote** → confirm the quote card + Accept button render.
-2. Click **Accept Quote** → confirm auto-redirect to Razorpay-style payment page.
-3. Click **Pay** → confirm success toast and redirect to `/account/orders/$id`.
-4. Open **Account → Orders** list → confirm the newly paid order appears.
-5. Open **Account → Inquiries** list → confirm the paid one no longer appears (status moved to `paid`).
+Keep `getPayableOrder` as-is.
+
+## Step 3 — Rewrite `src/routes/_authenticated.checkout.pay.$id.tsx`
+- Remove the mock card / UPI / netbanking form and the three method buttons.
+- Keep the branded summary header (Razorpay logo, amount, merchant name).
+- Single **Pay with Razorpay** button that:
+  1. Lazy-loads `https://checkout.razorpay.com/v1/checkout.js` once via a `<script>` inject.
+  2. Calls `createRazorpayOrder` → gets `{ razorpayOrderId, amount, currency, keyId }`.
+  3. Opens `new window.Razorpay({ key: keyId, order_id: razorpayOrderId, amount, currency, name: "Jelfie Jewellers", description: "Order " + id, prefill: { email, name } from profile if available, theme: { color: "#0c2451" }, handler: async (resp) => { await verifyRazorpayPayment({ data: { id, ...resp } }); toast + invalidate + navigate → /account/orders/$id; }, modal: { ondismiss: () => toast("Payment cancelled") } }).open()`.
+  4. Also listens for `rzp.on('payment.failed', ...)` to show a toast.
+- Cancel link continues to work as it does today.
+
+## Step 4 — Testing
+1. In test mode, use card `4111 1111 1111 1111`, any future expiry, any CVV, OTP `1234`.
+2. Confirm: modal opens, payment succeeds, order flips to `paid`, appears in `/account/orders`, invoice download unlocked.
+3. Close modal before paying → order stays `accepted`, no `payments` row inserted.
+4. If Razorpay returns `"international payments not enabled"` for USD, either enable USD on the dashboard or reply and I'll add INR conversion (fixed configurable rate).
 
 ## Out of scope
-- Admin panel behavior (unchanged).
-- Real payment integration (still dummy Razorpay).
-- WhatsApp anything (already removed).
+- Live-mode go-live (just swap the secrets when you're ready).
+- Refunds, saved cards, subscriptions.
+- Webhooks (signature verify in `handler` covers the happy path; webhook can be added later for abandoned-tab reconciliation).
+- Any WhatsApp / admin-payment-panel changes.
