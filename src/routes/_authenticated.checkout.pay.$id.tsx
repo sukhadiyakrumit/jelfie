@@ -109,12 +109,20 @@ function CheckoutPayPage() {
       });
       rzp.on("payment.failed", (resp: any) => {
         setProcessing(false);
-        toast.error(resp?.error?.description || "Payment failed");
+        const msg = resp?.error?.description || "Payment failed";
+        toast.error(msg, { duration: 6000 });
+        setFailure({
+          message: msg,
+          code: resp?.error?.code,
+          paymentId: resp?.error?.metadata?.payment_id,
+        });
       });
       rzp.open();
     } catch (e: any) {
       setProcessing(false);
-      toast.error(e?.message || "Could not start payment");
+      const msg = e?.message || "Could not start payment";
+      toast.error(msg, { duration: 6000 });
+      setFailure({ message: msg });
     }
   }, [createOrder, id, verify]);
 
