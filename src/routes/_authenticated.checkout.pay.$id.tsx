@@ -180,6 +180,24 @@ function CheckoutPayPage() {
               </div>
             </div>
 
+            {failure && (
+              <div className="mb-5 border border-red-300 bg-red-50">
+                <div className="flex items-center gap-2 px-4 py-3 bg-red-600 text-white">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span className="text-[11px] uppercase tracking-widest font-medium">Payment failed</span>
+                </div>
+                <div className="px-4 py-4 text-sm text-onyx">
+                  <p className="mb-3">{failure.message}</p>
+                  {(failure.code || failure.paymentId) && (
+                    <div className="text-[11px] font-mono text-onyx/60 border-t border-red-200 pt-2 space-y-0.5">
+                      {failure.code && <div>Code: {failure.code}</div>}
+                      {failure.paymentId && <div>Ref: {failure.paymentId}</div>}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <button
               onClick={startPayment}
               disabled={processing || verify.isPending}
@@ -189,8 +207,27 @@ function CheckoutPayPage() {
                 ? "Confirming…"
                 : processing
                 ? "Opening Razorpay…"
+                : failure
+                ? `Retry payment · $${amount.toLocaleString()}`
                 : `Pay $${amount.toLocaleString()} with Razorpay`}
             </button>
+
+            {failure && (
+              <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                <Link
+                  to="/account/orders"
+                  className="flex-1 text-center py-3 border border-onyx/20 text-[11px] uppercase tracking-widest hover:border-onyx"
+                >
+                  Back to Orders
+                </Link>
+                <Link
+                  to="/contact"
+                  className="flex-1 text-center py-3 border border-onyx/20 text-[11px] uppercase tracking-widest hover:border-onyx"
+                >
+                  Contact Support
+                </Link>
+              </div>
+            )}
 
             <div className="mt-4 flex items-center justify-center gap-2 text-[11px] text-onyx/50">
               <Lock className="w-3 h-3" />
