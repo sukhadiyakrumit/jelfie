@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import { Lock, ShieldCheck } from "lucide-react";
+import { Lock, ShieldCheck, AlertTriangle } from "lucide-react";
 import {
   getPayableOrder,
   createRazorpayOrder,
@@ -49,6 +49,7 @@ function CheckoutPayPage() {
   const createOrder = useServerFn(createRazorpayOrder);
   const verifyPayment = useServerFn(verifyRazorpayPayment);
   const [processing, setProcessing] = useState(false);
+  const [failure, setFailure] = useState<{ message: string; code?: string; paymentId?: string } | null>(null);
 
   const q = useQuery({ queryKey: ["payable-order", id], queryFn: () => fetchOrder({ data: { id } }) });
 
@@ -69,13 +70,16 @@ function CheckoutPayPage() {
       navigate({ to: "/account/orders/$id", params: { id } });
     },
     onError: (e: Error) => {
-      toast.error(e.message || "Payment verification failed");
+      const msg = e.message || "Payment verification failed";
+      toast.error(msg, { duration: 6000 });
+      setFailure({ message: msg });
       setProcessing(false);
     },
   });
 
   const startPayment = useCallback(async () => {
     try {
+      setFailure(null);
       setProcessing(true);
       await loadRazorpay();
       const order = await createOrder({ data: { id } });
@@ -105,12 +109,20 @@ function CheckoutPayPage() {
       });
       rzp.on("payment.failed", (resp: any) => {
         setProcessing(false);
-        toast.error(resp?.error?.description || "Payment failed");
+        const msg = resp?.error?.description || "Payment failed";
+        toast.error(msg, { duration: 6000 });
+        setFailure({
+          message: msg,
+          code: resp?.error?.code,
+          paymentId: resp?.error?.metadata?.payment_id,
+        });
       });
       rzp.open();
     } catch (e: any) {
       setProcessing(false);
-      toast.error(e?.message || "Could not start payment");
+      const msg = e?.message || "Could not start payment";
+      toast.error(msg, { duration: 6000 });
+      setFailure({ message: msg });
     }
   }, [createOrder, id, verify]);
 
@@ -168,6 +180,24 @@ function CheckoutPayPage() {
               </div>
             </div>
 
+            {failure && (
+              <div className="mb-5 border border-red-300 bg-red-50">
+                <div className="flex items-center gap-2 px-4 py-3 bg-red-600 text-white">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span className="text-[11px] uppercase tracking-widest font-medium">Payment failed</span>
+                </div>
+                <div className="px-4 py-4 text-sm text-onyx">
+                  <p className="mb-3">{failure.message}</p>
+                  {(failure.code || failure.paymentId) && (
+                    <div className="text-[11px] font-mono text-onyx/60 border-t border-red-200 pt-2 space-y-0.5">
+                      {failure.code && <div>Code: {failure.code}</div>}
+                      {failure.paymentId && <div>Ref: {failure.paymentId}</div>}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <button
               onClick={startPayment}
               disabled={processing || verify.isPending}
@@ -177,8 +207,27 @@ function CheckoutPayPage() {
                 ? "Confirming…"
                 : processing
                 ? "Opening Razorpay…"
+                : failure
+                ? `Retry payment · $${amount.toLocaleString()}`
                 : `Pay $${amount.toLocaleString()} with Razorpay`}
             </button>
+
+            {failure && (
+              <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                <Link
+                  to="/account/orders"
+                  className="flex-1 text-center py-3 border border-onyx/20 text-[11px] uppercase tracking-widest hover:border-onyx"
+                >
+                  Back to Orders
+                </Link>
+                <Link
+                  to="/contact"
+                  className="flex-1 text-center py-3 border border-onyx/20 text-[11px] uppercase tracking-widest hover:border-onyx"
+                >
+                  Contact Support
+                </Link>
+              </div>
+            )}
 
             <div className="mt-4 flex items-center justify-center gap-2 text-[11px] text-onyx/50">
               <Lock className="w-3 h-3" />
